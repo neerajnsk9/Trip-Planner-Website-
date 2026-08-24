@@ -288,8 +288,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const latLngList = [];
         const destLat = state.destinationCoords?.lat || 28.6139;
         const destLng = state.destinationCoords?.lng || 77.2090;
+        const placedPositions = [];
+        const dayCounters = {};
 
-        // 4. Render numbered markers strictly for the filtered stops
+        // 4. Render numbered markers strictly for the filtered stops with anti-overlap positioning
         filteredStops.forEach((stop, idx) => {
             let lat = stop.latitude || (stop.coords && stop.coords.lat) || destLat;
             let lng = stop.longitude || (stop.coords && stop.coords.lng) || destLng;
@@ -305,10 +307,32 @@ document.addEventListener('DOMContentLoaded', async () => {
                     stop.coords.lng = lng;
                 }
             }
+
+            // Anti-Overlap Guard: If another marker is at the same location, offset slightly so Stop 1 is NEVER hidden under Stop 2!
+            let collisions = 0;
+            placedPositions.forEach(p => {
+                const dist = Math.hypot(p.lat - lat, p.lng - lng);
+                if (dist < 0.005) {
+                    collisions++;
+                }
+            });
+
+            if (collisions > 0) {
+                const spreadAngle = (collisions * 1.35) + (idx * 0.85);
+                const spreadRadius = 0.0065 * collisions;
+                lat = Number((lat + spreadRadius * Math.sin(spreadAngle)).toFixed(5));
+                lng = Number((lng + spreadRadius * Math.cos(spreadAngle)).toFixed(5));
+            }
+            placedPositions.push({ lat, lng });
+
+            // Calculate per-day sequential stop number
+            const sDay = stop.day || 1;
+            dayCounters[sDay] = (dayCounters[sDay] || 0) + 1;
+            const dayStopIndex = dayCounters[sDay];
             
-            // Label numbering: 1, 2, 3... for single day; D1-1, D2-1... for all days
-            const labelNumber = state.activeDay === 'all' ? `D${stop.day}-${idx + 1}` : String(idx + 1);
-            const markerColor = getDayColor(stop.day);
+            // Label numbering: Always 1, 2, 3... for single day; D1-1, D2-1... for all days
+            const labelNumber = state.activeDay === 'all' ? `D${sDay}-${dayStopIndex}` : String(idx + 1);
+            const markerColor = getDayColor(sDay);
 
             latLngList.push([lat, lng]);
 
@@ -547,13 +571,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        const cardCounters = {};
         elements.dayPlaceCards.innerHTML = stops.map((stop, idx) => {
             const hasPhoto = stop.photos && stop.photos.length > 0;
             const thumbHtml = hasPhoto 
                 ? `<img src="${stop.photos[0]}" class="day-place-card-thumb" alt="${stop.placeName}">`
                 : `<div class="day-place-card-no-thumb"><i class="fas fa-map-pin"></i></div>`;
 
-            const badgeText = activeDay === 'all' ? `D${stop.day}-${idx + 1}` : String(idx + 1);
+            const sDay = stop.day || 1;
+            cardCounters[sDay] = (cardCounters[sDay] || 0) + 1;
+            const badgeText = activeDay === 'all' ? `D${sDay}-${cardCounters[sDay]}` : String(idx + 1);
 
             return `
                 <div class="day-place-card" data-place-id="${stop.placeId || ''}" data-place-name="${stop.placeName}">

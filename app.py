@@ -208,7 +208,35 @@ KNOWN_COORDINATES = {
     'birla mandir': (26.8924, 75.8154),
     'chokhi dhani': (26.7663, 75.8361),
     'bapu bazaar': (26.9189, 75.8211),
-    'johari bazaar': (26.9215, 75.8268)
+    'johari bazaar': (26.9215, 75.8268),
+
+    # Kerala Landmarks
+    'fort kochi': (9.9658, 76.2421),
+    'mattancherry palace': (9.9583, 76.2592),
+    'mattancherry': (9.9583, 76.2592),
+    'jewish synagogue': (9.9575, 76.2598),
+    'chinese fishing nets': (9.9697, 76.2429),
+    'marine drive kochi': (9.9816, 76.2753),
+    'marine drive': (9.9816, 76.2753),
+    'lulu mall kochi': (10.0271, 76.3080),
+    'lulu mall': (10.0271, 76.3080),
+    'hill palace': (9.9529, 76.3639),
+    'cherai beach': (10.1415, 76.1786),
+    'alappuzha': (9.4981, 76.3388),
+    'alleppey': (9.4981, 76.3388),
+    'marari beach': (9.6006, 76.2974),
+    'vembanad lake': (9.6176, 76.4301),
+    'kumarakom': (9.6176, 76.4301),
+    'munnar': (10.0889, 77.0595),
+    'tea museum': (10.0898, 77.0573),
+    'mattupetty dam': (10.1065, 77.1242),
+    'eravikulam': (10.1500, 77.0667),
+    'athirappilly': (10.2851, 76.5698),
+    'varkala': (8.7379, 76.7163),
+    'kovalam': (8.4004, 76.9787),
+    'padmanabhaswamy': (8.4828, 76.9436),
+    'thekkady': (9.6031, 77.1615),
+    'periyar': (9.4679, 77.1444)
 }
 
 def is_valid_local_coord(coord, dest_center, max_dist_km=75):
