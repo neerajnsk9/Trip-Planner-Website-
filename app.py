@@ -15,23 +15,55 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Configure Gemini API
-genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-model = GenerativeModel('gemini-3.6-flash')
-
 import json
 import re
 import urllib.parse
 import urllib.request
+import time
+
+def get_gemini_model():
+    api_key = os.getenv('GEMINI_API_KEY', '').strip()
+    if not api_key:
+        raise ValueError("Missing GEMINI_API_KEY in .env file. Please add your key to .env")
+    genai.configure(api_key=api_key)
+    return GenerativeModel('gemini-1.5-flash')
+
+def generate_gemini_content(prompt):
+    """Generates content with automatic model fallback and retries."""
+    api_key = os.getenv('GEMINI_API_KEY', '').strip()
+    if not api_key:
+        raise ValueError("Missing GEMINI_API_KEY in .env file.")
+    genai.configure(api_key=api_key)
+    
+    candidate_models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-3.6-flash']
+    last_error = None
+    
+    for model_name in candidate_models:
+        try:
+            m = GenerativeModel(model_name)
+            response = m.generate_content(prompt)
+            if response and response.text:
+                return response.text
+        except Exception as e:
+            last_error = e
+            err_msg = str(e).lower()
+            if "leaked" in err_msg or "403" in err_msg:
+                raise e # Key revoked/leaked
+            time.sleep(0.5)
+            continue
+            
+    if last_error:
+        raise last_error
+    raise Exception("Failed to generate content from Gemini API.")
 
 def handle_gemini_error(e):
     err_str = str(e)
     if "leaked" in err_str.lower():
-        return "Gemini API Error: The API key in .env was reported as leaked by Google. Please replace GEMINI_API_KEY in .env with a new valid API key from https://aistudio.google.com/app/apikey"
-    elif "api_key" in err_str.lower() or "403" in err_str:
-        return "Gemini API Error: Invalid or unauthorized API key. Please check GEMINI_API_KEY in .env."
-    elif "429" in err_str or "quota" in err_str.lower():
-        return "Gemini API Error: Quota/Rate limit exceeded. Please wait a moment or use an API key with available quota."
+        return "Gemini API Error: Your Gemini API key was reported as leaked/revoked by Google. Please create a fresh key at https://aistudio.google.com/app/apikey and update GEMINI_API_KEY in your .env file."
+    elif "api_key" in err_str.lower() or "403" in err_str or "permission_denied" in err_str.lower():
+        return "Gemini API Error: Invalid or revoked API key. Please generate a new key from https://aistudio.google.com/app/apikey and paste it into .env."
+    elif "429" in err_str or "quota" in err_str.lower() or "resourceexhausted" in err_str.lower():
+        return "Gemini API Error: Rate limit/Quota exceeded on your Gemini API key. Please wait 1-2 minutes or use an API key with available quota."
     return f"Error: {err_str}"
 
 @app.route('/')
@@ -230,8 +262,7 @@ def generate_itinerary():
         ```
         Provide 2 to 4 distinct landmark/restaurant/attraction stops for each day in the JSON list in chronological order."""
 
-        response = model.generate_content(prompt)
-        raw_text = response.text
+        raw_text = generate_gemini_content(prompt)
 
         itinerary_text = raw_text
         stops = []
@@ -303,8 +334,8 @@ Formatting instructions:
 1. When recommending specific attractions, landmarks, viewpoints, hotels, or restaurants, format each place as: [place: Place Name] (e.g. "Be sure to check out [place: Solang Valley] for paragliding or grab coffee at [place: Cafe 1947]."). This enables interactive map exploration.
 2. Keep recommendations well-formatted with markdown bullet points and clear practical travel advice."""
         
-        response = model.generate_content(prompt)
-        return jsonify({'response': response.text})
+        chat_reply = generate_gemini_content(prompt)
+        return jsonify({'response': chat_reply})
     except Exception as e:
         return jsonify({'error': handle_gemini_error(e)}), 500
 
