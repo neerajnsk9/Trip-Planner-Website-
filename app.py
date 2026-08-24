@@ -119,8 +119,11 @@ def extract_stops_from_text(destination, text):
     return stops[:20]
 
 KNOWN_COORDINATES = {
+    # Cities / Regions
     'manali': (32.2396, 77.1887),
     'goa': (15.2993, 74.1240),
+    'north goa': (15.5553, 73.7517),
+    'south goa': (15.2832, 73.9862),
     'jaipur': (26.9124, 75.7873),
     'kerala': (9.9312, 76.2673),
     'delhi': (28.6139, 77.2090),
@@ -140,24 +143,90 @@ KNOWN_COORDINATES = {
     'bangkok': (13.7563, 100.5018),
     'amsterdam': (52.3676, 4.9041),
     'new york': (40.7128, -74.0060),
+    
+    # Manali Landmarks
     'hadimba': (32.2483, 77.1805),
+    'hidimba': (32.2483, 77.1805),
     'solang': (32.3166, 77.1575),
+    'atal tunnel': (32.4013, 77.1483),
+    'sissu': (32.4770, 77.1230),
     'rohtang': (32.3716, 77.2466),
     'jogini': (32.2686, 77.1950),
     'vashisht': (32.2608, 77.1904),
-    'manu': (32.2530, 77.1720),
-    'mall road': (32.2396, 77.1887),
+    'manu temple': (32.2530, 77.1720),
+    'mall road manali': (32.2396, 77.1887),
+    'old manali': (32.2562, 77.1750),
+    'naggar castle': (32.1120, 77.1650),
+    'jana waterfall': (32.1388, 77.2050),
+    'van vihar': (32.2370, 77.1880),
+    'cafe 1947': (32.2562, 77.1750),
+
+    # Goa Landmarks (All strictly within Goa!)
+    'se cathedral': (15.5009, 73.9126),
+    'basilica of bom jesus': (15.5009, 73.9116),
+    'bom jesus': (15.5009, 73.9116),
+    'fort aguada': (15.4925, 73.7736),
+    'aguada': (15.4925, 73.7736),
+    'chapora fort': (15.6062, 73.7380),
+    'chapora': (15.6062, 73.7380),
+    'vagator': (15.6028, 73.7336),
+    'anjuna': (15.5838, 73.7439),
     'baga': (15.5553, 73.7517),
     'calangute': (15.5439, 73.7553),
-    'aguada': (15.4925, 73.7736),
+    'candolim': (15.5173, 73.7628),
+    'sinquerim': (15.4988, 73.7686),
     'dudhsagar': (15.3144, 74.3143),
-    'anjuna': (15.5838, 73.7439),
+    'fontainhas': (15.4989, 73.8318),
+    'panaji': (15.4909, 73.8278),
+    'old goa': (15.5036, 73.9126),
+    'dona paula': (15.4538, 73.8016),
+    'miramar': (15.4808, 73.8083),
+    'mangeshi': (15.4338, 73.9686),
+    'shanta durga': (15.3625, 73.9875),
+    'colva': (15.2783, 73.9167),
+    'benaulim': (15.2618, 73.9234),
+    'palolem': (15.0100, 74.0232),
+    'agonda': (15.0445, 73.9886),
+    'cabo de rama': (15.0886, 73.9211),
+    'morjim': (15.6319, 73.7371),
+    'ashwem': (15.6540, 73.7225),
+    'arambol': (15.6869, 73.7042),
+    'spice plantation': (15.4219, 74.0156),
+
+    # Jaipur Landmarks
     'hawa mahal': (26.9239, 75.8267),
     'amer fort': (26.9855, 75.8513),
+    'amber fort': (26.9855, 75.8513),
+    'city palace jaipur': (26.9258, 75.8237),
     'city palace': (26.9258, 75.8237),
     'jantar mantar': (26.9248, 75.8246),
-    'nahargarh': (26.9373, 75.8155)
+    'nahargarh': (26.9373, 75.8155),
+    'jaigarh': (26.9850, 75.8456),
+    'jal mahal': (26.9537, 75.8463),
+    'albert hall': (26.9118, 75.8195),
+    'patrika gate': (26.8528, 75.8055),
+    'birla mandir': (26.8924, 75.8154),
+    'chokhi dhani': (26.7663, 75.8361),
+    'bapu bazaar': (26.9189, 75.8211),
+    'johari bazaar': (26.9215, 75.8268)
 }
+
+def is_valid_local_coord(coord, dest_center, max_dist_km=75):
+    """Checks if a coordinate is strictly within local range of the destination city."""
+    if not coord or not dest_center:
+        return False
+    try:
+        import math
+        lat1, lon1 = math.radians(dest_center['lat']), math.radians(dest_center['lng'])
+        lat2, lon2 = math.radians(coord['lat']), math.radians(coord['lng'])
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+        dist = 6371 * c
+        return dist <= max_dist_km
+    except Exception:
+        return False
 
 def resolve_coordinates(query, fallback_center=None, index=0, total=1):
     q_lower = query.lower()
@@ -165,7 +234,7 @@ def resolve_coordinates(query, fallback_center=None, index=0, total=1):
         if key in q_lower:
             return {'lat': coords[0], 'lng': coords[1]}
     
-    # Try fast geocoding
+    # Try fast geocoding with destination context
     try:
         encoded = urllib.parse.quote(query)
         req = urllib.request.Request(
@@ -175,11 +244,13 @@ def resolve_coordinates(query, fallback_center=None, index=0, total=1):
         with urllib.request.urlopen(req, timeout=2) as res:
             data = json.loads(res.read().decode('utf-8'))
             if data and len(data) > 0:
-                return {'lat': float(data[0]['lat']), 'lng': float(data[0]['lon'])}
+                candidate = {'lat': float(data[0]['lat']), 'lng': float(data[0]['lon'])}
+                if fallback_center and is_valid_local_coord(candidate, fallback_center, 75):
+                    return candidate
     except Exception:
         pass
     
-    # Compute deterministic offset around city center
+    # Compute deterministic local offset around city center
     if fallback_center:
         import math
         angle = (2 * math.pi * index) / max(total, 1) + 0.4
@@ -287,7 +358,11 @@ def generate_itinerary():
             place_name = stop.get('placeName', '').strip()
             place_details = resolve_place_data(place_name, destination)
             
-            coords = place_details.get('coords') or resolve_coordinates(stop.get('searchQuery') or f"{place_name}, {destination}", dest_center, idx, len(stops))
+            raw_coords = place_details.get('coords')
+            if raw_coords and is_valid_local_coord(raw_coords, dest_center, 75):
+                coords = raw_coords
+            else:
+                coords = resolve_coordinates(stop.get('searchQuery') or f"{place_name}, {destination}", dest_center, idx, len(stops))
             
             resolved_stops.append({
                 'placeId': place_details.get('placeId', f"stop_{idx+1}"),
@@ -348,8 +423,8 @@ def fetch_wikipedia_place(place_name, destination=""):
     
     # 1. Try exact title lookup with automatic redirect resolution
     candidate_titles = [
-        clean_name,
         f"{clean_name}, {destination}".strip(', '),
+        clean_name,
         f"{clean_name} ({destination})",
         f"{clean_name} Temple" if 'temple' not in clean_name.lower() and any(k in clean_name.lower() for k in ['mandir', 'hidimba', 'hadimba', 'manu']) else None
     ]
@@ -370,6 +445,17 @@ def fetch_wikipedia_place(place_name, destination=""):
                 title = page.get('title', '')
                 if 'disambiguation' in title.lower():
                     continue
+
+                # Coordinate proximity check
+                coords = None
+                if page.get('coordinates'):
+                    c = page['coordinates'][0]
+                    cand_coord = {'lat': float(c['lat']), 'lng': float(c['lon'])}
+                    if is_valid_local_coord(cand_coord, dest_center, 75):
+                        coords = cand_coord
+                    else:
+                        # Geographically invalid (e.g. Lisbon matched for Goa) -> Skip this page
+                        continue
 
                 photos = []
                 main_photo = page.get('thumbnail', {}).get('source') or page.get('original', {}).get('source')

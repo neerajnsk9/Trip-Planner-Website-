@@ -286,11 +286,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const latLngList = [];
+        const destLat = state.destinationCoords?.lat || 28.6139;
+        const destLng = state.destinationCoords?.lng || 77.2090;
 
         // 4. Render numbered markers strictly for the filtered stops
         filteredStops.forEach((stop, idx) => {
-            const lat = stop.latitude || (stop.coords && stop.coords.lat) || state.destinationCoords.lat;
-            const lng = stop.longitude || (stop.coords && stop.coords.lng) || state.destinationCoords.lng;
+            let lat = stop.latitude || (stop.coords && stop.coords.lat) || destLat;
+            let lng = stop.longitude || (stop.coords && stop.coords.lng) || destLng;
+            
+            // Geographic sanity guard: Clamp to destination vicinity if wildly distant
+            if (Math.abs(lat - destLat) > 0.75 || Math.abs(lng - destLng) > 0.75) {
+                lat = destLat + (0.01 + idx * 0.008) * Math.sin(idx * 1.2 + 0.4);
+                lng = destLng + (0.01 + idx * 0.008) * Math.cos(idx * 1.2 + 0.4);
+                stop.latitude = lat;
+                stop.longitude = lng;
+                if (stop.coords) {
+                    stop.coords.lat = lat;
+                    stop.coords.lng = lng;
+                }
+            }
             
             // Label numbering: 1, 2, 3... for single day; D1-1, D2-1... for all days
             const labelNumber = state.activeDay === 'all' ? `D${stop.day}-${idx + 1}` : String(idx + 1);
@@ -358,7 +372,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        // 5. Fit map bounds strictly to the active day's coordinates
+        // 5. Fit map bounds strictly to the active day's coordinates (preventing global zoom-out)
         if (latLngList.length > 0) {
             if (state.mapEngine === 'google' && state.googleMap) {
                 const bounds = new google.maps.LatLngBounds();
@@ -366,9 +380,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 state.googleMap.fitBounds(bounds);
             } else if (state.mapEngine === 'leaflet' && state.leafletMap) {
                 if (latLngList.length === 1) {
-                    state.leafletMap.setView(latLngList[0], 14);
+                    state.leafletMap.setView(latLngList[0], 13);
                 } else {
-                    state.leafletMap.fitBounds(latLngList, { padding: [45, 45], maxZoom: 15 });
+                    state.leafletMap.fitBounds(latLngList, { padding: [50, 50], maxZoom: 14 });
                 }
             }
         }
@@ -399,6 +413,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         })).filter(c => c.lat && c.lng);
 
         if (validCoords.length < 2) return;
+
+        // Guard: check that maximum distance between stops does not exceed 70km
+        const first = validCoords[0];
+        const isReasonableLocalTrip = validCoords.every(c => Math.abs(c.lat - first.lat) < 0.8 && Math.abs(c.lng - first.lng) < 0.8);
+        if (!isReasonableLocalTrip) {
+            drawSimplePolyline(validCoords);
+            return;
+        }
 
         // 1. If Google Maps is active and has directionsService
         if (state.mapEngine === 'google' && state.directionsService && state.directionsRenderer) {
@@ -436,7 +458,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const res = await fetch(osrmUrl);
             const data = await res.json();
 
-            if (data.routes && data.routes.length > 0 && state.leafletMap) {
+            // Guard: If OSRM returned a valid local route (< 100km total distance)
+            if (data.routes && data.routes.length > 0 && data.routes[0].distance < 120000 && state.leafletMap) {
                 const routeGeoJson = data.routes[0].geometry;
                 
                 // Leaflet GeoJSON expects [lat, lng], OSRM returns [lng, lat]
