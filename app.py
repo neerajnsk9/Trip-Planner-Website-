@@ -35,7 +35,7 @@ def generate_gemini_content(prompt):
         raise ValueError("Missing GEMINI_API_KEY in .env file.")
     genai.configure(api_key=api_key)
     
-    candidate_models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-3.6-flash']
+    candidate_models = ['gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-flash-latest']
     last_error = None
     
     for model_name in candidate_models:
