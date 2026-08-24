@@ -457,89 +457,88 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function routeSingleDay(coordsList, color = '#0284c7') {
-        try {
-            // Guard: check that maximum distance between points in a day does not exceed 75km
-            const first = coordsList[0];
-            const isReasonableLocalTrip = coordsList.every(c => Math.abs(c.lat - first.lat) < 0.8 && Math.abs(c.lng - first.lng) < 0.8);
-            if (!isReasonableLocalTrip) {
-                drawSimplePolyline(coordsList, color);
-                return;
+        if (!coordsList || coordsList.length < 2) return;
+
+        // Route leg-by-leg so that even if one spot is in a rural area, all places stay 100% interconnected!
+        for (let i = 0; i < coordsList.length - 1; i++) {
+            const start = coordsList[i];
+            const end = coordsList[i + 1];
+
+            try {
+                // Check distance guard (< 65km between consecutive stops)
+                const distKm = Math.hypot(end.lat - start.lat, end.lng - start.lng) * 111;
+                if (distKm > 70) {
+                    drawSimplePolyline([start, end], color);
+                    continue;
+                }
+
+                // 1. Google Maps Directions
+                if (state.mapEngine === 'google' && state.directionsService) {
+                    const renderer = new google.maps.DirectionsRenderer({
+                        map: state.googleMap,
+                        suppressMarkers: true,
+                        polylineOptions: {
+                            strokeColor: color,
+                            strokeWeight: 5,
+                            strokeOpacity: 0.85
+                        }
+                    });
+
+                    state.directionsService.route({
+                        origin: new google.maps.LatLng(start.lat, start.lng),
+                        destination: new google.maps.LatLng(end.lat, end.lng),
+                        travelMode: google.maps.TravelMode.DRIVING
+                    }, (result, status) => {
+                        if (status === google.maps.DirectionsStatus.OK) {
+                            renderer.setDirections(result);
+                            state.routeLayers.push(renderer);
+                        } else {
+                            drawSimplePolyline([start, end], color);
+                        }
+                    });
+                    continue;
+                }
+
+                // 2. Leaflet Engine with OSRM
+                const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson`;
+                const res = await fetch(osrmUrl);
+                const data = await res.json();
+
+                if (data.routes && data.routes.length > 0 && data.routes[0].distance < 80000 && state.leafletMap) {
+                    const routeGeoJson = data.routes[0].geometry;
+                    // Leaflet GeoJSON expects [lat, lng], OSRM returns [lng, lat]
+                    const legCoordinates = [
+                        [start.lat, start.lng],
+                        ...routeGeoJson.coordinates.map(c => [c[1], c[0]]),
+                        [end.lat, end.lng]
+                    ];
+
+                    const poly = L.polyline(legCoordinates, {
+                        color: color,
+                        weight: 5,
+                        opacity: 0.85,
+                        lineJoin: 'round'
+                    }).addTo(state.leafletMap);
+
+                    state.routeLayers.push(poly);
+                } else {
+                    drawSimplePolyline([start, end], color);
+                }
+            } catch (err) {
+                drawSimplePolyline([start, end], color);
             }
-
-            // 1. Google Maps Engine
-            if (state.mapEngine === 'google' && state.directionsService) {
-                const origin = coordsList[0];
-                const destination = coordsList[coordsList.length - 1];
-                const waypoints = coordsList.slice(1, -1).map(c => ({
-                    location: new google.maps.LatLng(c.lat, c.lng),
-                    stopover: true
-                }));
-
-                const renderer = new google.maps.DirectionsRenderer({
-                    map: state.googleMap,
-                    suppressMarkers: true,
-                    polylineOptions: {
-                        strokeColor: color,
-                        strokeWeight: 5,
-                        strokeOpacity: 0.85
-                    }
-                });
-
-                state.directionsService.route({
-                    origin: new google.maps.LatLng(origin.lat, origin.lng),
-                    destination: new google.maps.LatLng(destination.lat, destination.lng),
-                    waypoints: waypoints,
-                    travelMode: google.maps.TravelMode.DRIVING
-                }, (result, status) => {
-                    if (status === google.maps.DirectionsStatus.OK) {
-                        renderer.setDirections(result);
-                        state.routeLayers.push(renderer);
-                    } else {
-                        drawSimplePolyline(coordsList, color);
-                    }
-                });
-                return;
-            }
-
-            // 2. Leaflet Engine: Use OSRM for true road-following geometry
-            const queryPoints = coordsList.map(c => `${c.lng},${c.lat}`).join(';');
-            const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${queryPoints}?overview=full&geometries=geojson`;
-
-            const res = await fetch(osrmUrl);
-            const data = await res.json();
-
-            // Guard: If OSRM returned a valid local route (< 120km total distance)
-            if (data.routes && data.routes.length > 0 && data.routes[0].distance < 120000 && state.leafletMap) {
-                const routeGeoJson = data.routes[0].geometry;
-                
-                // Leaflet GeoJSON expects [lat, lng], OSRM returns [lng, lat]
-                const latLngCoordinates = routeGeoJson.coordinates.map(c => [c[1], c[0]]);
-
-                const poly = L.polyline(latLngCoordinates, {
-                    color: color,
-                    weight: 5,
-                    opacity: 0.85,
-                    lineJoin: 'round'
-                }).addTo(state.leafletMap);
-
-                state.routeLayers.push(poly);
-            } else {
-                drawSimplePolyline(coordsList, color);
-            }
-        } catch (err) {
-            console.warn('OSRM routing fallback to direct line:', err);
-            drawSimplePolyline(coordsList, color);
         }
     }
 
     function drawSimplePolyline(coordsList, color = '#0284c7') {
-        if (state.mapEngine === 'leaflet' && state.leafletMap) {
+        if (state.mapEngine === 'leaflet' && state.leafletMap && coordsList.length >= 2) {
             const points = coordsList.map(c => [c.lat, c.lng]);
             const poly = L.polyline(points, {
                 color: color,
-                weight: 4,
-                opacity: 0.8,
-                dashArray: '6, 8'
+                weight: 5,
+                opacity: 0.85,
+                dashArray: '8, 8',
+                lineJoin: 'round'
             }).addTo(state.leafletMap);
             state.routeLayers.push(poly);
         }
