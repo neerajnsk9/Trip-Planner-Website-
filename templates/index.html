@@ -219,17 +219,23 @@
 
                     <!-- View Mode Switcher -->
                     <div class="workspace-tab-switcher">
-                        <button id="tabBtnSequence" class="workspace-tab active" data-tab="sequence">
-                            <i class="fas fa-list-ol"></i> Place Sequence & Timeline
+                        <button id="tabBtnPlan" class="workspace-tab active" data-tab="plan">
+                            <i class="fas fa-calendar-alt"></i> Day-by-Day Plan
                         </button>
-                        <button id="tabBtnGuide" class="workspace-tab" data-tab="guide">
-                            <i class="fas fa-book-open"></i> Full Itinerary Guide
+                        <button id="tabBtnSequence" class="workspace-tab" data-tab="sequence">
+                            <i class="fas fa-list-ol"></i> Place Sequence & Travel Stats
                         </button>
                     </div>
 
-                    <!-- Tab 1: Chronological Place Sequence & Timeline -->
-                    <div id="sequenceTabView" class="tab-pane active">
-                        
+                    <!-- Tab 1: Day-by-Day Plan Cards (Picture 2 & 3 Style) -->
+                    <div id="planTabView" class="tab-pane active">
+                        <div id="dayPlanCardsContainer" class="day-plan-cards-container">
+                            <!-- Dynamic Day 1, Day 2 cards with [Show Day Map] button will be rendered here -->
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: Chronological Place Sequence & Timeline -->
+                    <div id="sequenceTabView" class="tab-pane hidden">
                         <!-- Day Filter Chips on Sequence List -->
                         <div class="day-filter-container">
                             <div class="day-filter-scroll" id="sidebarDayFilters">
@@ -241,13 +247,14 @@
                         <div class="timeline-sequence-list" id="timelineSequenceList">
                             <!-- Injected dynamically by script.js -->
                         </div>
+                    </div>
 
-                        <!-- Docked Selected Place Details Drawer -->
-                        <div id="place-details-card" class="place-details-drawer hidden">
-                            <div class="drawer-header">
-                                <div class="drawer-title-wrap">
-                                    <span class="category-pill" id="placeCategory"><i class="fas fa-map-pin"></i> Sightseeing</span>
-                                    <h3 id="placeName">Landmark Name</h3>
+                    <!-- Docked Selected Place Details Drawer -->
+                    <div id="place-details-card" class="place-details-drawer hidden">
+                        <div class="drawer-header">
+                            <div class="drawer-title-wrap">
+                                <span class="category-pill" id="placeCategory"><i class="fas fa-map-pin"></i> Sightseeing</span>
+                                <h3 id="placeName">Landmark Name</h3>
                                     <div class="drawer-meta-row">
                                         <span class="rating-badge" id="placeRating"><i class="fas fa-star"></i> 4.8</span>
                                         <span class="day-badge" id="placeDayTag">Day 1</span>

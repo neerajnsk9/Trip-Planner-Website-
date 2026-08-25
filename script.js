@@ -54,10 +54,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         tripSummaryText: document.getElementById('tripSummaryText'),
         tripBestSeason: document.getElementById('tripBestSeason'),
 
+        tabBtnPlan: document.getElementById('tabBtnPlan'),
         tabBtnSequence: document.getElementById('tabBtnSequence'),
-        tabBtnGuide: document.getElementById('tabBtnGuide'),
+        planTabView: document.getElementById('planTabView'),
         sequenceTabView: document.getElementById('sequenceTabView'),
-        guideTabView: document.getElementById('guideTabView'),
+        dayPlanCardsContainer: document.getElementById('dayPlanCardsContainer'),
         sidebarDayFilters: document.getElementById('sidebarDayFilters'),
         timelineSequenceList: document.getElementById('timelineSequenceList'),
         itineraryContent: document.getElementById('itinerary-content'),
@@ -194,11 +195,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Workspace tab switcher
+        if (elements.tabBtnPlan) {
+            elements.tabBtnPlan.addEventListener('click', () => switchWorkspaceTab('plan'));
+        }
         if (elements.tabBtnSequence) {
             elements.tabBtnSequence.addEventListener('click', () => switchWorkspaceTab('sequence'));
-        }
-        if (elements.tabBtnGuide) {
-            elements.tabBtnGuide.addEventListener('click', () => switchWorkspaceTab('guide'));
         }
 
         // Start Planning Hero CTA button
@@ -364,17 +365,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function switchWorkspaceTab(tab) {
         state.activeTab = tab;
-        if (tab === 'sequence') {
-            elements.tabBtnSequence.classList.add('active');
-            elements.tabBtnGuide.classList.remove('active');
-            elements.sequenceTabView.classList.remove('hidden');
-            elements.guideTabView.classList.add('hidden');
-        } else {
+        if (tab === 'plan') {
+            elements.tabBtnPlan.classList.add('active');
             elements.tabBtnSequence.classList.remove('active');
-            elements.tabBtnGuide.classList.add('active');
+            elements.planTabView.classList.remove('hidden');
             elements.sequenceTabView.classList.add('hidden');
-            elements.guideTabView.classList.remove('hidden');
+        } else {
+            elements.tabBtnPlan.classList.remove('active');
+            elements.tabBtnSequence.classList.add('active');
+            elements.planTabView.classList.add('hidden');
+            elements.sequenceTabView.classList.remove('hidden');
         }
+        ensureMapSize();
     }
 
     // =========================================================================
@@ -446,24 +448,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         const center = [state.destinationCoords.lat || 28.6139, state.destinationCoords.lng || 77.2090];
         state.leafletMap = L.map(elements.mapContainer, {
             zoomControl: true,
-            attributionControl: true
+            attributionControl: true,
+            fadeAnimation: true
         }).setView(center, 12);
 
-        // Modern CARTO Positron tile layer
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        // Standard high-reliability OpenStreetMap Tile Server
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
-            attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap'
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(state.leafletMap);
+
+        ensureMapSize();
     }
 
     function ensureMapSize() {
-        setTimeout(() => {
-            if (state.mapEngine === 'leaflet' && state.leafletMap) {
-                state.leafletMap.invalidateSize();
-            } else if (state.mapEngine === 'google' && state.googleMap && window.google) {
-                google.maps.event.trigger(state.googleMap, 'resize');
-            }
-        }, 80);
+        [50, 150, 350, 700].forEach(delay => {
+            setTimeout(() => {
+                if (state.mapEngine === 'leaflet' && state.leafletMap) {
+                    state.leafletMap.invalidateSize();
+                } else if (state.mapEngine === 'google' && state.googleMap && window.google) {
+                    google.maps.event.trigger(state.googleMap, 'resize');
+                }
+            }, delay);
+        });
     }
 
     window.addEventListener('resize', ensureMapSize);
@@ -584,10 +591,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             elements.tripBestSeason.innerHTML = `<i class="fas fa-sun"></i> Best Season: ${data.tripOverview?.bestTimeToVisit || 'Oct - Mar'}`;
         }
 
-        // Render Markdown Guide Content
-        if (elements.itineraryContent) {
-            elements.itineraryContent.innerHTML = formatMarkdownItinerary(data.itinerary || '');
-        }
+        // Render Day-by-Day Plan Cards (Picture 2 & 3 Style)
+        renderDayPlanCards(data.itinerary || '', data.destination);
 
         // Show Workspace
         elements.tripExplorerSection.classList.remove('hidden');
@@ -603,6 +608,122 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Render Day Stops & Map
         ensureMapSize();
         selectDay(state.activeDay);
+    }
+
+    function renderDayPlanCards(itineraryText, destination) {
+        if (!elements.dayPlanCardsContainer) return;
+
+        if (!itineraryText) {
+            elements.dayPlanCardsContainer.innerHTML = '<div style="padding:1.5rem; text-align:center; color:var(--text-muted);">No itinerary text available.</div>';
+            return;
+        }
+
+        // Clean text
+        let cleanText = itineraryText
+            .replace(/=== ITINERARY TEXT ===/gi, '')
+            .replace(/=== STRUCTURED TRIP JSON ===/gi, '')
+            .replace(/```json[\s\S]*?```/gi, '')
+            .trim();
+
+        // Split by Day X
+        const daySplits = cleanText.split(/(?=(?:###?\s*)?Day\s+\d+)/i);
+        let cardsHtml = '';
+
+        daySplits.forEach((dayBlock, idx) => {
+            const trimmed = dayBlock.trim();
+            if (!trimmed) return;
+
+            // Extract Day Number and Day Title
+            const headerMatch = trimmed.match(/(?:###?\s*)?Day\s+(\d+)\s*[-–:]?\s*([^\n<]+)/i);
+            const dayNum = headerMatch ? headerMatch[1] : String(idx + 1);
+            let dayTitle = headerMatch ? `Day ${dayNum} – ${headerMatch[2].replace(/\*\*/g, '').trim()}` : `Day ${dayNum} Highlights`;
+
+            // Extract Body (remove header line)
+            let bodyText = trimmed;
+            if (headerMatch) {
+                bodyText = trimmed.substring(headerMatch[0].length).trim();
+            }
+
+            // Format body content
+            let formattedBody = bodyText
+                .replace(/^#### (.*?)$/gim, '<h4>$1</h4>')
+                .replace(/^### (.*?)$/gim, '<h4>$1</h4>')
+                .replace(/^## (.*?)$/gim, '<h4>$1</h4>')
+                .replace(/\*\*\[(.*?)\]\*\*/g, (match, p1) => {
+                    const cleanPlace = p1.trim();
+                    return `<button type="button" class="itinerary-place-chip" data-place="${cleanPlace}"><i class="fas fa-map-pin"></i> ${cleanPlace}</button>`;
+                })
+                .replace(/\*\*(.*?)\*\*/g, (match, p1) => {
+                    const clean = p1.trim();
+                    const isHeader = ['morning', 'afternoon', 'evening', 'night', 'daily tips', 'day ', 'transportation', 'weather', 'costs', 'breakfast', 'lunch', 'dinner', 'budget', 'pace'].some(k => clean.toLowerCase().includes(k));
+                    if (!isHeader && clean.length > 2) {
+                        return `<button type="button" class="itinerary-place-chip" data-place="${clean}"><i class="fas fa-map-pin"></i> ${clean}</button>`;
+                    }
+                    return `<strong>${p1}</strong>`;
+                })
+                .replace(/^\s*[-*]\s+(.*)$/gim, '<li>$1</li>')
+                .replace(/\n\n/g, '<br><br>')
+                .replace(/\n/g, '<br>');
+
+            formattedBody = formattedBody.replace(/(<li>.*?<\/li>)/gis, '<ul>$1</ul>');
+
+            cardsHtml += `
+                <div class="itinerary-day-card" id="itinerary-day-${dayNum}" data-day="${dayNum}">
+                    <div class="itinerary-day-header">
+                        <h3 class="itinerary-day-title">
+                            <i class="fas fa-calendar-day"></i> ${dayTitle}
+                        </h3>
+                        <button type="button" class="day-show-map-btn" data-day="${dayNum}" title="Show Day ${dayNum} on Map">
+                            <i class="fas fa-map-marked-alt"></i> Show Day ${dayNum} Map
+                        </button>
+                    </div>
+                    <div class="itinerary-day-body">
+                        ${formattedBody}
+                    </div>
+                </div>
+            `;
+        });
+
+        elements.dayPlanCardsContainer.innerHTML = cardsHtml;
+
+        // Bind [Show Day X Map] buttons
+        elements.dayPlanCardsContainer.querySelectorAll('.day-show-map-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const dayNum = btn.dataset.day;
+                selectDay(dayNum);
+                ensureMapSize();
+                // Smooth scroll to map on mobile/small screens
+                if (window.innerWidth <= 1024) {
+                    elements.mapContainer.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+
+        // Bind interactive [📍 Place Name] chips
+        elements.dayPlanCardsContainer.querySelectorAll('.itinerary-place-chip').forEach(chip => {
+            chip.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const placeName = chip.dataset.place;
+
+                // Find matching stop in state.stops
+                let matchedStop = state.stops.find(s => 
+                    s.placeName.toLowerCase().includes(placeName.toLowerCase()) ||
+                    placeName.toLowerCase().includes(s.placeName.toLowerCase())
+                );
+
+                if (matchedStop) {
+                    if (String(matchedStop.day) !== state.activeDay && state.activeDay !== 'all') {
+                        selectDay(matchedStop.day);
+                    }
+                    focusPlaceOnMapAndDrawer(matchedStop);
+                } else {
+                    // Fallback to nearest destination stop or map center
+                    panToCoordinates(state.destinationCoords.lat, state.destinationCoords.lng, 14);
+                }
+            });
+        });
     }
 
     function renderDayFilters(stops) {
