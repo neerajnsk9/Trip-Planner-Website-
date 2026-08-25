@@ -185,14 +185,20 @@
             <div id="formErrorMessage" class="error-message hidden"></div>
         </section>
 
-        <!-- Advanced 2-Column Trip Explorer Workspace -->
+        <!-- Unified 2-Column Trip Planner Workspace -->
         <section id="trip-explorer-section" class="container trip-workspace-section hidden">
-            <!-- Explorer Top Navigation Bar -->
+            
+            <!-- Compact Trip Header Bar -->
             <div class="workspace-header-bar">
                 <div class="workspace-title-wrap">
-                    <div class="workspace-badge"><i class="fas fa-map-location-dot"></i> Interactive Trip Map & Plan</div>
-                    <h2 id="explorer-destination-title">Your Travel Itinerary</h2>
-                    <p id="explorer-subtitle" class="workspace-subtitle">Explore sequential stops, verified photographs, and road directions.</p>
+                    <button id="backToFormBtn" class="back-link-btn" title="Edit Trip Preferences">
+                        <i class="fas fa-arrow-left"></i> Edit Preferences
+                    </button>
+                    <div class="title-with-badge">
+                        <h2 id="explorer-destination-title">Your Travel Itinerary</h2>
+                        <span class="vibe-pill" id="tripVibeTag"><i class="fas fa-sparkles"></i> Scenic & Cultural</span>
+                    </div>
+                    <p id="explorer-subtitle" class="workspace-subtitle">A curated exploration with sequential stops, road routes, and verified photos.</p>
                 </div>
                 <div class="workspace-actions">
                     <button id="downloadPdf" class="action-btn primary"><i class="fas fa-file-pdf"></i> PDF Guide</button>
@@ -200,54 +206,29 @@
                 </div>
             </div>
 
-            <!-- 2-Column Split Workspace -->
+            <!-- Compact Key Statistics Bar -->
+            <div class="trip-stats-bar" id="tripStatsBar">
+                <div class="stat-pill"><i class="fas fa-calendar-alt text-primary"></i> <strong id="statDuration">3 Days</strong></div>
+                <div class="stat-pill"><i class="fas fa-map-marker-alt text-accent"></i> <strong id="statStopsCount">0 Stops</strong></div>
+                <div class="stat-pill"><i class="fas fa-road text-success"></i> <strong id="statTotalDistance">0 km</strong></div>
+                <div class="stat-pill"><i class="fas fa-hourglass-half text-warning"></i> <strong id="statTotalTime">0m Travel</strong></div>
+                <div class="stat-pill"><i class="fas fa-star text-gold"></i> <strong id="statAvgRating">⭐ 4.8 Rating</strong></div>
+            </div>
+
+            <!-- Main 2-Column Split Workspace (45% Itinerary / 55% Sticky Map) -->
             <div class="trip-workspace-grid" id="tripGrid">
                 
-                <!-- Left Column: Itinerary Timeline & Place Sequence -->
-                <div class="itinerary-sidebar-column" id="itinerarySidebarColumn">
+                <!-- Left Column: Unified Itinerary Panel -->
+                <div class="itinerary-column" id="itineraryColumn">
                     
-                    <!-- Trip Overview Card -->
-                    <div class="trip-overview-card" id="tripOverviewCard">
-                        <div class="overview-header">
-                            <span class="overview-vibe" id="tripVibeTag"><i class="fas fa-sparkles"></i> Scenic & Cultural</span>
-                            <span class="overview-duration" id="tripDurationTag"><i class="fas fa-calendar"></i> 3 Days</span>
-                        </div>
-                        <p class="overview-summary" id="tripSummaryText">Curated travel plan with verified landmarks, scenic drives, and local cuisine.</p>
-                        <div class="overview-meta" id="tripMetaTags">
-                            <span id="tripBestSeason"><i class="fas fa-sun"></i> Best Season: Oct - Mar</span>
-                        </div>
+                    <!-- Clean Day Switcher Bar -->
+                    <div class="day-navigation-bar" id="dayNavigationBar">
+                        <!-- Injected by script.js: [ 🌐 Overview ] [ 📅 Day 1 ] [ 📅 Day 2 ] [ 📅 Day 3 ] -->
                     </div>
 
-                    <!-- View Mode Switcher -->
-                    <div class="workspace-tab-switcher">
-                        <button id="tabBtnPlan" class="workspace-tab active" data-tab="plan">
-                            <i class="fas fa-calendar-alt"></i> Day-by-Day Plan
-                        </button>
-                        <button id="tabBtnSequence" class="workspace-tab" data-tab="sequence">
-                            <i class="fas fa-list-ol"></i> Place Sequence & Travel Stats
-                        </button>
-                    </div>
-
-                    <!-- Tab 1: Day-by-Day Plan Cards (Picture 2 & 3 Style) -->
-                    <div id="planTabView" class="tab-pane active">
-                        <div id="dayPlanCardsContainer" class="day-plan-cards-container">
-                            <!-- Dynamic Day 1, Day 2 cards with [Show Day Map] button will be rendered here -->
-                        </div>
-                    </div>
-
-                    <!-- Tab 2: Chronological Place Sequence & Timeline -->
-                    <div id="sequenceTabView" class="tab-pane hidden">
-                        <!-- Day Filter Chips on Sequence List -->
-                        <div class="day-filter-container">
-                            <div class="day-filter-scroll" id="sidebarDayFilters">
-                                <!-- Dynamic Day Pills will be injected here -->
-                            </div>
-                        </div>
-
-                        <!-- Sequential Place Cards Container -->
-                        <div class="timeline-sequence-list" id="timelineSequenceList">
-                            <!-- Injected dynamically by script.js -->
-                        </div>
+                    <!-- Dynamic Itinerary Content Area (Overview or Day Stop Cards) -->
+                    <div id="itineraryDynamicContent" class="itinerary-dynamic-content">
+                        <!-- Overview View or Day Itinerary View rendered here -->
                     </div>
 
                     <!-- Docked Selected Place Details Drawer -->
@@ -256,82 +237,80 @@
                             <div class="drawer-title-wrap">
                                 <span class="category-pill" id="placeCategory"><i class="fas fa-map-pin"></i> Sightseeing</span>
                                 <h3 id="placeName">Landmark Name</h3>
-                                    <div class="drawer-meta-row">
-                                        <span class="rating-badge" id="placeRating"><i class="fas fa-star"></i> 4.8</span>
-                                        <span class="day-badge" id="placeDayTag">Day 1</span>
-                                    </div>
-                                </div>
-                                <button id="closePlaceDetails" class="drawer-close-btn" title="Close details"><i class="fas fa-times"></i></button>
-                            </div>
-
-                            <!-- Carousel Gallery -->
-                            <div class="drawer-gallery" id="placeCarousel">
-                                <div class="drawer-main-img-wrap" id="carouselMainWrap">
-                                    <img id="carouselMainImg" src="" alt="Place photo" class="drawer-main-img">
-                                    <button class="carousel-nav-btn prev" id="carouselPrev" title="Previous"><i class="fas fa-chevron-left"></i></button>
-                                    <button class="carousel-nav-btn next" id="carouselNext" title="Next"><i class="fas fa-chevron-right"></i></button>
-                                    <button class="carousel-zoom-btn" id="carouselZoom" title="Zoom photo"><i class="fas fa-expand"></i></button>
-                                    <div class="carousel-counter" id="carouselCounter">1 / 1</div>
-                                </div>
-                                <div id="noPhotosFallback" class="no-photos-card hidden">
-                                    <i class="fas fa-camera"></i>
-                                    <span>Verified local landmark • Photo preview unavailable</span>
-                                </div>
-                                <div class="drawer-thumbnails" id="carouselThumbnails"></div>
-                            </div>
-
-                            <!-- Place Info & Description -->
-                            <div class="drawer-body">
-                                <div class="drawer-info-item" id="placeAddressRow">
-                                    <i class="fas fa-location-dot"></i>
-                                    <span id="placeAddress">Address loading...</span>
-                                    <button id="copyAddressBtn" class="copy-btn" title="Copy address"><i class="fas fa-copy"></i></button>
-                                </div>
-                                <div class="drawer-info-item" id="placeActivityRow">
-                                    <i class="fas fa-compass"></i>
-                                    <span id="placeActivity">Recommended highlight from your itinerary.</span>
-                                </div>
-                                <div class="drawer-info-item tips-item" id="placeTipsRow">
-                                    <i class="fas fa-lightbulb"></i>
-                                    <span id="placeTips">Travel tip for this spot.</span>
-                                </div>
-
-                                <!-- Action Buttons -->
-                                <div class="drawer-actions">
-                                    <button id="getDirectionsBtn" class="drawer-btn primary">
-                                        <i class="fas fa-diamond-turn-right"></i> Get Directions
-                                    </button>
-                                    <button id="askAiAboutPlaceBtn" class="drawer-btn secondary">
-                                        <i class="fas fa-comment-dots"></i> Ask AI
-                                    </button>
+                                <div class="drawer-meta-row">
+                                    <span class="rating-badge" id="placeRating"><i class="fas fa-star"></i> 4.8</span>
+                                    <span class="day-badge" id="placeDayTag">Day 1</span>
                                 </div>
                             </div>
+                            <button id="closePlaceDetails" class="drawer-close-btn" title="Close details"><i class="fas fa-times"></i></button>
                         </div>
 
+                        <!-- Carousel Gallery -->
+                        <div class="drawer-gallery" id="placeCarousel">
+                            <div class="drawer-main-img-wrap" id="carouselMainWrap">
+                                <img id="carouselMainImg" src="" alt="Place photo" class="drawer-main-img">
+                                <button class="carousel-nav-btn prev" id="carouselPrev" title="Previous"><i class="fas fa-chevron-left"></i></button>
+                                <button class="carousel-nav-btn next" id="carouselNext" title="Next"><i class="fas fa-chevron-right"></i></button>
+                                <button class="carousel-zoom-btn" id="carouselZoom" title="Zoom photo"><i class="fas fa-expand"></i></button>
+                                <div class="carousel-counter" id="carouselCounter">1 / 1</div>
+                            </div>
+                            <div id="noPhotosFallback" class="no-photos-card hidden">
+                                <i class="fas fa-camera"></i>
+                                <span>Verified local landmark • Photo preview unavailable</span>
+                            </div>
+                            <div class="drawer-thumbnails" id="carouselThumbnails"></div>
+                        </div>
+
+                        <!-- Place Info & Actions -->
+                        <div class="drawer-body">
+                            <div class="drawer-info-item" id="placeAddressRow">
+                                <i class="fas fa-location-dot"></i>
+                                <span id="placeAddress">Address loading...</span>
+                                <button id="copyAddressBtn" class="copy-btn" title="Copy address"><i class="fas fa-copy"></i></button>
+                            </div>
+                            <div class="drawer-info-item" id="placeActivityRow">
+                                <i class="fas fa-compass"></i>
+                                <span id="placeActivity">Recommended highlight from your itinerary.</span>
+                            </div>
+                            <div class="drawer-info-item tips-item" id="placeTipsRow">
+                                <i class="fas fa-lightbulb"></i>
+                                <span id="placeTips">Travel tip for this spot.</span>
+                            </div>
+
+                            <div class="drawer-actions">
+                                <button id="getDirectionsBtn" class="drawer-btn primary">
+                                    <i class="fas fa-diamond-turn-right"></i> Directions
+                                </button>
+                                <button id="askAiAboutPlaceBtn" class="drawer-btn secondary">
+                                    <i class="fas fa-comment-dots"></i> Ask AI
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                 </div>
 
                 <!-- Right Column: Sticky Interactive Map Viewport -->
-                <div class="map-viewport-column" id="mapViewportColumn">
-                    <div class="sticky-map-wrapper">
+                <div class="map-column" id="mapColumn">
+                    <div class="sticky-map-wrapper" id="stickyMapWrapper">
                         
-                        <!-- Map Header Toolbar -->
-                        <div class="map-header-toolbar">
-                            <!-- Day Filter Tabs on Map -->
-                            <div class="map-day-pills" id="mapDayFilters">
-                                <!-- Dynamic Day Pills -->
-                            </div>
+                        <!-- Top-Left Floating Map Stat Overlay -->
+                        <div class="map-floating-overlay top-left" id="mapTopOverlay">
+                            <div class="overlay-day-title" id="mapOverlayDayTitle">DAY 1</div>
+                            <div class="overlay-stats-row" id="mapOverlayStats">5 STOPS • 42 KM • 1h 25m</div>
+                        </div>
 
-                            <!-- Map Tool Controls -->
-                            <div class="map-toolbar-actions">
-                                <button id="toggleRouteBtn" class="map-tool-btn active" title="Toggle Road Routes">
-                                    <i class="fas fa-route"></i> <span>Route</span>
-                                </button>
-                                <button id="fitMapBoundsBtn" class="map-tool-btn" title="Fit All Locations">
-                                    <i class="fas fa-expand"></i> <span>Fit All</span>
-                                </button>
-                            </div>
+                        <!-- Top-Right Map Controls Toolbar -->
+                        <div class="map-floating-controls" id="mapControlsBar">
+                            <button id="toggleMapTypeBtn" class="map-control-pill" title="Toggle Satellite / Street View">
+                                <i class="fas fa-layer-group"></i> <span>Satellite</span>
+                            </button>
+                            <button id="toggleRouteBtn" class="map-control-pill active" title="Toggle Road Route">
+                                <i class="fas fa-route"></i> <span>Route</span>
+                            </button>
+                            <button id="fitMapBoundsBtn" class="map-control-pill" title="Fit All Locations">
+                                <i class="fas fa-expand"></i> <span>Fit Trip</span>
+                            </button>
                         </div>
 
                         <!-- Map Canvas Container -->
@@ -347,13 +326,10 @@
                             </div>
                         </div>
 
-                        <!-- Map Quick Place Cards Strip (Below Map) -->
-                        <div id="day-place-cards-section" class="map-bottom-cards-section">
-                            <div class="bottom-cards-header">
-                                <h4 id="dayCardsTitle"><i class="fas fa-location-arrow"></i> Day 1 Stops & Landmarks</h4>
-                                <span class="badge" id="dayStopsCount">0 Places</span>
-                            </div>
-                            <div id="day-place-cards" class="bottom-cards-scroll-strip"></div>
+                        <!-- Bottom-Left Floating Driving Info Badge -->
+                        <div class="map-floating-overlay bottom-left" id="mapBottomOverlay">
+                            <i class="fas fa-car"></i>
+                            <span id="mapBottomRouteText">🚗 Real Road Route • 42 km • 1h 25m</span>
                         </div>
 
                     </div>

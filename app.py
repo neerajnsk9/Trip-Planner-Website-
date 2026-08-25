@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from bs4 import BeautifulSoup
 import io
@@ -860,98 +860,174 @@ def get_place_details():
 @app.route('/download_pdf', methods=['POST'])
 def download_pdf():
     try:
-        data = request.json
-        html_content = data.get('content', '')
-        
-        # Parse HTML content
-        soup = BeautifulSoup(html_content, 'html.parser')
+        data = request.get_json(force=True, silent=True) or {}
+        destination = data.get('destination') or 'Your Trip'
+        trip_overview = data.get('tripOverview') or {}
+        stops = data.get('stops') or []
+        days_data = data.get('days') or []
+        itinerary_text = data.get('itineraryText') or data.get('content') or ''
         
         # Create PDF buffer
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=36,
+            leftMargin=36,
+            topMargin=36,
+            bottomMargin=36
+        )
         
-        # Create styles
+        # Styles
         styles = getSampleStyleSheet()
+        
         title_style = ParagraphStyle(
-            'CustomTitle',
+            'PdfTitle',
             parent=styles['Heading1'],
-            fontSize=24,
-            spaceAfter=30,
-            alignment=1
-        )
-        subtitle_style = ParagraphStyle(
-            'CustomSubtitle',
-            parent=styles['Heading2'],
-            fontSize=16,
-            spaceAfter=20,
-            alignment=1
-        )
-        day_style = ParagraphStyle(
-            'CustomDay',
-            parent=styles['Heading2'],
-            fontSize=18,
-            spaceAfter=10
-        )
-        content_style = ParagraphStyle(
-            'CustomContent',
-            parent=styles['Normal'],
-            fontSize=12,
-            spaceAfter=10
+            fontSize=22,
+            leading=26,
+            textColor=colors.HexColor('#0369a1'),
+            spaceAfter=6,
+            alignment=0
         )
         
-        # Build PDF content
+        subtitle_style = ParagraphStyle(
+            'PdfSubtitle',
+            parent=styles['Normal'],
+            fontSize=11,
+            leading=15,
+            textColor=colors.HexColor('#475569'),
+            spaceAfter=14
+        )
+        
+        day_title_style = ParagraphStyle(
+            'PdfDayTitle',
+            parent=styles['Heading2'],
+            fontSize=14,
+            leading=18,
+            textColor=colors.HexColor('#0f172a'),
+            spaceBefore=12,
+            spaceAfter=6
+        )
+        
+        stop_title_style = ParagraphStyle(
+            'PdfStopTitle',
+            parent=styles['Heading3'],
+            fontSize=11,
+            leading=14,
+            textColor=colors.HexColor('#0284c7'),
+            spaceBefore=6,
+            spaceAfter=2
+        )
+        
+        body_style = ParagraphStyle(
+            'PdfBody',
+            parent=styles['Normal'],
+            fontSize=9.5,
+            leading=13.5,
+            textColor=colors.HexColor('#334155'),
+            spaceAfter=4
+        )
+        
+        tip_style = ParagraphStyle(
+            'PdfTip',
+            parent=styles['Normal'],
+            fontSize=8.5,
+            leading=12,
+            textColor=colors.HexColor('#b45309'),
+            spaceAfter=6
+        )
+
         story = []
         
-        # Add title
-        title = soup.find('h2', class_='itinerary-header')
-        if title:
-            story.append(Paragraph(title.text, title_style))
+        # 1. Main Header Banner
+        story.append(Paragraph(f"<b>{destination} – AI Travel Itinerary & Guide</b>", title_style))
         
-        # Add subtitle
-        subtitle = soup.find('p', class_='itinerary-subtitle')
-        if subtitle:
-            story.append(Paragraph(subtitle.text, subtitle_style))
+        duration = trip_overview.get('duration') or len(days_data) or 3
+        vibe = trip_overview.get('tripVibe') or 'Scenic & Cultural Discovery'
+        best_season = trip_overview.get('bestTimeToVisit') or 'Autumn - Spring'
+        summary_text = trip_overview.get('summary') or f"Curated travel plan for {destination} with sequential stops and road routing."
         
-        # Add days
-        days = soup.find_all('div', class_='itinerary-day')
-        for day in days:
-            # Add day header
-            day_header = day.find('div', class_='day-header')
-            if day_header:
-                day_title = day_header.find('h3')
-                day_subtitle = day_header.find('h4')
-                if day_title:
-                    story.append(Paragraph(day_title.text, day_style))
-                if day_subtitle:
-                    story.append(Paragraph(day_subtitle.text, content_style))
-            
-            # Add day content
-            day_content = day.find('div', class_='day-content')
-            if day_content:
-                for element in day_content.children:
-                    if element.name == 'ol' or element.name == 'ul':
-                        for li in element.find_all('li'):
-                            story.append(Paragraph(f"• {li.text}", content_style))
-                    elif element.name == 'p':
-                        story.append(Paragraph(element.text, content_style))
-            
-            story.append(Spacer(1, 20))
+        story.append(Paragraph(f"<b>Duration:</b> {duration} Days &nbsp;|&nbsp; <b>Vibe:</b> {vibe} &nbsp;|&nbsp; <b>Best Season:</b> {best_season}", subtitle_style))
+        story.append(Paragraph(f"<i>{summary_text}</i>", body_style))
+        story.append(Spacer(1, 10))
+        story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor('#cbd5e1'), spaceBefore=4, spaceAfter=12))
         
+        # 2. Add Stops Grouped by Day
+        if stops:
+            # Group stops by day
+            stops_by_day = {}
+            for s in stops:
+                d = str(s.get('day') or 1)
+                stops_by_day.setdefault(d, []).append(s)
+                
+            for day_num in sorted(stops_by_day.keys(), key=lambda x: int(x) if x.isdigit() else 99):
+                day_stops = stops_by_day[day_num]
+                day_title = f"Day {day_num} Itinerary"
+                if days_data:
+                    for d_info in days_data:
+                        if str(d_info.get('day')) == str(day_num) and d_info.get('title'):
+                            day_title = f"Day {day_num}: {d_info.get('title')}"
+                            break
+                            
+                story.append(Paragraph(f"<b>{day_title}</b>", day_title_style))
+                story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#e2e8f0'), spaceBefore=2, spaceAfter=8))
+                
+                for idx, stop in enumerate(day_stops):
+                    p_name = stop.get('placeName') or f"Stop {idx+1}"
+                    t_slot = stop.get('timeSlot') or f"{9 + idx*2:02d}:00 AM"
+                    activity = stop.get('activity') or "Sightseeing and local exploration."
+                    tips = stop.get('tips') or ""
+                    addr = stop.get('formattedAddress') or ""
+                    dist = stop.get('distanceFromPrevKm', 0)
+                    travel_time = stop.get('travelTimeFromPrevMins', 0)
+                    
+                    if idx > 0 and dist > 0:
+                        story.append(Paragraph(f"<i>&nbsp;&nbsp;🚗 {dist:.1f} km • ~{travel_time} mins travel</i>", tip_style))
+                        
+                    rating_str = f" ⭐ {stop.get('rating')}" if stop.get('rating') else ""
+                    story.append(Paragraph(f"<b>Stop {idx+1}: {p_name}</b> ({t_slot}){rating_str}", stop_title_style))
+                    story.append(Paragraph(f"{activity}", body_style))
+                    if addr:
+                        story.append(Paragraph(f"<font color='#64748b'>📍 {addr}</font>", body_style))
+                    if tips:
+                        story.append(Paragraph(f"💡 <b>Travel Tip:</b> {tips}", tip_style))
+                    story.append(Spacer(1, 4))
+                
+                story.append(Spacer(1, 10))
+        
+        elif itinerary_text:
+            # Fallback parsing plain text / HTML
+            clean_lines = itinerary_text.replace('<br>', '\n').replace('</p>', '\n').replace('</li>', '\n').split('\n')
+            for line in clean_lines:
+                s = line.strip()
+                if not s:
+                    continue
+                if s.startswith('#') or 'Day ' in s[:10]:
+                    story.append(Paragraph(f"<b>{s.replace('#', '').strip()}</b>", day_title_style))
+                elif s.startswith('-') or s.startswith('*'):
+                    story.append(Paragraph(f"• {s[1:].strip()}", body_style))
+                else:
+                    story.append(Paragraph(s, body_style))
+                    
+        else:
+            story.append(Paragraph(f"Curated {duration}-Day Travel Itinerary for {destination}.", body_style))
+
         # Build PDF
         doc.build(story)
-        
-        # Reset buffer position
         buffer.seek(0)
         
+        safe_name = destination.replace(' ', '_').replace('/', '_')
         return send_file(
             buffer,
             mimetype='application/pdf',
             as_attachment=True,
-            download_name='travel-itinerary.pdf'
+            download_name=f"{safe_name}_Itinerary.pdf"
         )
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"PDF Generation error: {e}")
+        return jsonify({'error': f"PDF error: {str(e)}"}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
