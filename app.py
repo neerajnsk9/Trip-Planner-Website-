@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, send_from_directory
 from google.generativeai import GenerativeModel
 import google.generativeai as genai
 import os
@@ -13,7 +13,28 @@ import io
 # Load environment variables
 load_dotenv()
 
-app = Flask(__name__)
+base_dir = os.path.dirname(os.path.abspath(__file__))
+static_dir = os.path.join(base_dir, 'static')
+templates_dir = os.path.join(base_dir, 'templates')
+
+app = Flask(
+    __name__,
+    static_folder=static_dir,
+    static_url_path='/static',
+    template_folder=templates_dir
+)
+
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    return send_from_directory(static_dir, filename)
+
+@app.route('/style.css')
+def serve_root_css():
+    return send_from_directory(os.path.join(static_dir, 'css'), 'style.css')
+
+@app.route('/script.js')
+def serve_root_js():
+    return send_from_directory(os.path.join(static_dir, 'js'), 'script.js')
 
 import json
 import re
