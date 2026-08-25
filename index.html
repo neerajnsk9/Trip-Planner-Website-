@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
     <!-- Leaflet CSS for Reliable Interactive Map View -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
@@ -38,7 +38,7 @@
     <!-- Hero Header (Picture 2 Blue Aerial Airplane Window Banner) -->
     <header class="hero-header-banner">
         <div class="container hero-content">
-            <div class="hero-badge"><i class="fas fa-sparkles"></i> Powered by Gemini AI & Google Maps</div>
+            <div class="hero-badge"><i class="fas fa-wand-magic-sparkles"></i> Powered by Gemini AI & Google Maps</div>
             <h1>Discover & Plan Your Perfect Journey</h1>
             <p>Generate personalized day-by-day itineraries with interactive Google Maps, high-resolution destination photos, and real-time AI guidance.</p>
             
@@ -75,19 +75,25 @@
                 <div class="form-row destination-row">
                     <div class="form-group flex-2">
                         <label for="destination"><i class="fas fa-map-marker-alt"></i> Destination <span class="required-star">*</span></label>
-                        <div class="input-with-icon">
-                            <input type="text" id="destination" name="destination" placeholder="Where do you want to go? (e.g. Manali, Goa, Paris, Tokyo)" required autocomplete="off">
-                            <i class="fas fa-search input-icon"></i>
+                        <div class="autocomplete-wrapper">
+                            <div class="input-with-icon">
+                                <input type="text" id="destination" name="destination" placeholder="Where do you want to go? (e.g. Andhra Pradesh, Goa, Paris, Tokyo)" required autocomplete="off">
+                                <i class="fas fa-search input-icon"></i>
+                            </div>
+                            <div id="destinationDropdown" class="autocomplete-dropdown hidden"></div>
                         </div>
                     </div>
 
                     <div class="form-group flex-2">
                         <label for="startingPoint"><i class="fas fa-hotel"></i> Starting Point / Hotel / Airport <span class="optional-tag">(Optional)</span></label>
-                        <div class="input-with-actions">
-                            <input type="text" id="startingPoint" name="startingPoint" placeholder="e.g. Hotel, Airport, City Center" autocomplete="off">
-                            <button type="button" id="useCurrentLocationBtn" class="input-action-btn" title="Use current geolocation">
-                                <i class="fas fa-crosshairs"></i> <span>Near Me</span>
-                            </button>
+                        <div class="autocomplete-wrapper">
+                            <div class="input-with-actions">
+                                <input type="text" id="startingPoint" name="startingPoint" placeholder="e.g. Andhra Pradesh, Airport, City Center" autocomplete="off">
+                                <button type="button" id="useCurrentLocationBtn" class="input-action-btn" title="Use current geolocation">
+                                    <i class="fas fa-crosshairs"></i> <span>Near Me</span>
+                                </button>
+                            </div>
+                            <div id="startingPointDropdown" class="autocomplete-dropdown hidden"></div>
                         </div>
                     </div>
                 </div>
@@ -196,7 +202,7 @@
                     </button>
                     <div class="title-with-badge">
                         <h2 id="explorer-destination-title">Your Travel Itinerary</h2>
-                        <span class="vibe-pill" id="tripVibeTag"><i class="fas fa-sparkles"></i> Scenic & Cultural</span>
+                        <span class="vibe-pill" id="tripVibeTag"><i class="fas fa-wand-magic-sparkles"></i> Scenic & Cultural</span>
                     </div>
                     <p id="explorer-subtitle" class="workspace-subtitle">A curated exploration with sequential stops, road routes, and verified photos.</p>
                 </div>

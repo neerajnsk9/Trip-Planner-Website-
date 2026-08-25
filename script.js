@@ -26,14 +26,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         directionsService: null,
         routeLayers: [],
         apiKeyConfig: null,
-        isChatbotMinimized: false
+        isChatbotMinimized: true
     };
 
     // DOM Elements Cache
     const elements = {
         preferencesForm: document.getElementById('itineraryForm'),
         destinationInput: document.getElementById('destination'),
+        destinationDropdown: document.getElementById('destinationDropdown'),
         startingPointInput: document.getElementById('startingPoint'),
+        startingPointDropdown: document.getElementById('startingPointDropdown'),
         useCurrentLocationBtn: document.getElementById('useCurrentLocationBtn'),
         startDateInput: document.getElementById('startDate'),
         endDateInput: document.getElementById('endDate'),
@@ -120,7 +122,132 @@ document.addEventListener('DOMContentLoaded', async () => {
     // =========================================================================
     setupEventListeners();
     initFormHandling();
+    initAutocomplete();
     initializeMapEngine().catch(err => console.warn('Deferred map engine init:', err));
+
+    function initAutocomplete() {
+        setupAutocomplete(elements.destinationInput, elements.destinationDropdown, (selectedItem) => {
+            elements.destinationInput.value = selectedItem.name;
+            if (selectedItem.lat && selectedItem.lng) {
+                state.destinationCoords = { lat: selectedItem.lat, lng: selectedItem.lng };
+            }
+        });
+
+        setupAutocomplete(elements.startingPointInput, elements.startingPointDropdown, (selectedItem) => {
+            elements.startingPointInput.value = selectedItem.name;
+        });
+    }
+
+    function setupAutocomplete(inputEl, dropdownEl, onSelect) {
+        if (!inputEl || !dropdownEl) return;
+        let debounceTimer = null;
+        let activeIndex = -1;
+        let currentItems = [];
+
+        inputEl.addEventListener('input', (e) => {
+            clearTimeout(debounceTimer);
+            const query = inputEl.value.trim();
+            if (query.length < 1) {
+                dropdownEl.classList.add('hidden');
+                dropdownEl.innerHTML = '';
+                return;
+            }
+
+            debounceTimer = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(query)}`);
+                    if (!res.ok) return;
+                    currentItems = await res.json();
+                    renderDropdown(currentItems, query);
+                } catch (err) {
+                    console.error('Autocomplete fetch error:', err);
+                }
+            }, 180);
+        });
+
+        inputEl.addEventListener('focus', () => {
+            if (inputEl.value.trim().length >= 1 && currentItems.length > 0) {
+                dropdownEl.classList.remove('hidden');
+            }
+        });
+
+        inputEl.addEventListener('keydown', (e) => {
+            const items = dropdownEl.querySelectorAll('.autocomplete-item');
+            if (dropdownEl.classList.contains('hidden') || items.length === 0) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                activeIndex = (activeIndex + 1) % items.length;
+                updateActiveItem(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                activeIndex = (activeIndex - 1 + items.length) % items.length;
+                updateActiveItem(items);
+            } else if (e.key === 'Enter') {
+                if (activeIndex >= 0 && activeIndex < currentItems.length) {
+                    e.preventDefault();
+                    selectItem(currentItems[activeIndex]);
+                }
+            } else if (e.key === 'Escape') {
+                dropdownEl.classList.add('hidden');
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!inputEl.contains(e.target) && !dropdownEl.contains(e.target)) {
+                dropdownEl.classList.add('hidden');
+            }
+        });
+
+        function renderDropdown(items, query) {
+            if (!items || items.length === 0) {
+                dropdownEl.innerHTML = '<div style="padding:0.75rem 1rem; color:#94a3b8; font-size:0.85rem;"><i class="fas fa-search-location"></i> No matching world destinations found</div>';
+                dropdownEl.classList.remove('hidden');
+                return;
+            }
+
+            activeIndex = -1;
+            const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+
+            dropdownEl.innerHTML = items.map((item, idx) => {
+                const highlightedName = item.name.replace(regex, '<mark>$1</mark>');
+                const flagOrIcon = item.flag || '📍';
+                const typeBadge = item.type ? `<span class="autocomplete-badge">${item.type.replace('_', ' ')}</span>` : '';
+
+                return `
+                    <div class="autocomplete-item" data-index="${idx}">
+                        <div class="autocomplete-item-icon">${flagOrIcon}</div>
+                        <div class="autocomplete-item-info">
+                            <div class="autocomplete-item-name">${highlightedName}</div>
+                            <div class="autocomplete-item-desc">${item.description || item.country || 'Global Destination'}</div>
+                        </div>
+                        ${typeBadge}
+                    </div>
+                `;
+            }).join('');
+
+            dropdownEl.querySelectorAll('.autocomplete-item').forEach((itemEl, idx) => {
+                itemEl.addEventListener('click', () => {
+                    selectItem(items[idx]);
+                });
+            });
+
+            dropdownEl.classList.remove('hidden');
+        }
+
+        function updateActiveItem(items) {
+            items.forEach((it, i) => it.classList.toggle('active', i === activeIndex));
+            if (activeIndex >= 0 && items[activeIndex]) {
+                items[activeIndex].scrollIntoView({ block: 'nearest' });
+            }
+        }
+
+        function selectItem(item) {
+            dropdownEl.classList.add('hidden');
+            dropdownEl.innerHTML = '';
+            onSelect(item);
+        }
+    }
 
     function initFormHandling() {
         if (elements.startDateInput && elements.endDateInput && elements.durationInput) {
@@ -432,29 +559,38 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function initLeafletMap() {
         state.mapEngine = 'leaflet';
-        if (state.leafletMap) return;
+        if (state.leafletMap) {
+            ensureMapSize();
+            return;
+        }
+        if (!elements.mapContainer) return;
 
-        const center = [state.destinationCoords.lat || 28.6139, state.destinationCoords.lng || 77.2090];
-        state.leafletMap = L.map(elements.mapContainer, {
-            zoomControl: true,
-            attributionControl: true,
-            fadeAnimation: true
-        }).setView(center, 12);
+        const center = [state.destinationCoords?.lat || 28.6139, state.destinationCoords?.lng || 77.2090];
+        try {
+            state.leafletMap = L.map(elements.mapContainer, {
+                zoomControl: true,
+                attributionControl: true,
+                fadeAnimation: true
+            }).setView(center, 12);
 
-        // Standard Street Tile Layer
-        state.leafletStreetLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(state.leafletMap);
+            // CARTO Voyager Tile Layer (Modern, Clean, High-Contrast & Fast)
+            state.leafletStreetLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19,
+                subdomains: 'abcd',
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
+            }).addTo(state.leafletMap);
 
-        // Satellite Tile Layer (Esri World Imagery)
-        state.leafletSatLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 19,
-            attribution: 'Tiles &copy; Esri'
-        });
+            // Satellite Tile Layer (Esri World Imagery)
+            state.leafletSatLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 19,
+                attribution: 'Tiles &copy; Esri'
+            });
 
-        state.currentMapLayerType = 'street';
-        ensureMapSize();
+            state.currentMapLayerType = 'street';
+            ensureMapSize();
+        } catch (e) {
+            console.error('Error initializing Leaflet map:', e);
+        }
     }
 
     function toggleMapLayerType() {
@@ -481,7 +617,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function ensureMapSize() {
-        [50, 150, 350, 700].forEach(delay => {
+        [30, 100, 250, 500, 1000].forEach(delay => {
             setTimeout(() => {
                 if (state.mapEngine === 'leaflet' && state.leafletMap) {
                     state.leafletMap.invalidateSize();
@@ -624,7 +760,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Update Header/Stats
         if (elements.explorerDestTitle) elements.explorerDestTitle.textContent = `${data.destination} Journey`;
         if (elements.explorerSubtitle) elements.explorerSubtitle.textContent = `A curated ${totalDays}-day exploration across ${totalStops} verified landmarks & scenic routes.`;
-        if (elements.tripVibeTag) elements.tripVibeTag.innerHTML = `<i class="fas fa-sparkles"></i> ${data.tripOverview?.tripVibe || 'Scenic & Cultural'}`;
+        if (elements.tripVibeTag) elements.tripVibeTag.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> ${data.tripOverview?.tripVibe || 'Scenic & Cultural'}`;
         
         if (elements.statDuration) elements.statDuration.textContent = `${totalDays} Days`;
         if (elements.statStopsCount) elements.statStopsCount.textContent = `${totalStops} Stops`;
@@ -639,6 +775,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderDayNavBar();
         elements.tripExplorerSection.classList.remove('hidden');
         elements.tripExplorerSection.scrollIntoView({ behavior: 'smooth' });
+
+        if (state.mapEngine === 'leaflet') {
+            if (!state.leafletMap) {
+                initLeafletMap();
+            } else {
+                ensureMapSize();
+            }
+        } else if (state.mapEngine === 'google' && !state.googleMap && state.apiKeyConfig?.googleMapsApiKey) {
+            initGoogleMap();
+        }
 
         const availableDays = [...new Set(state.stops.map(s => String(s.day || 1)))].sort((a, b) => a - b);
         const initialDay = availableDays.length > 0 ? availableDays[0] : '1';
@@ -793,10 +939,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
             `;
             if (idx < dayStops.length - 1 && stop.travelToNext) {
+                const isLongDistance = (stop.travelToNext.distanceKm || 0) >= 120;
+                const iconClass = isLongDistance ? 'fa-plane-departure' : 'fa-car-side';
                 stopsHtml += `
                     <div class="inter-stop-road-connector">
-                        <div class="road-stat-chip">
-                            <i class="fas fa-car"></i> ${stop.travelToNext.formatted || `${stop.travelToNext.distanceKm} km • ${stop.travelToNext.durationMin} min`}
+                        <div class="road-stat-chip ${isLongDistance ? 'long-distance' : ''}">
+                            <i class="fas ${iconClass}"></i> ${stop.travelToNext.formatted || `${stop.travelToNext.distanceKm} km • ${stop.travelToNext.durationMin} min`}
                         </div>
                     </div>
                 `;
@@ -835,27 +983,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        const destLat = state.destinationCoords?.lat || 28.6139;
-        const destLng = state.destinationCoords?.lng || 77.2090;
-        const placedPositions = [];
+        const destLat = state.destinationCoords?.lat || 15.4909;
+        const destLng = state.destinationCoords?.lng || 73.8278;
         const dayCounters = {};
 
         stops.forEach((stop, idx) => {
-            let lat = stop.latitude || (stop.coords && stop.coords.lat) || destLat;
-            let lng = stop.longitude || (stop.coords && stop.coords.lng) || destLng;
-
-            if (Math.abs(lat - destLat) > 0.75 || Math.abs(lng - destLng) > 0.75) {
-                lat = destLat + (0.01 + idx * 0.008) * Math.sin(idx * 1.2 + 0.4);
-                lng = destLng + (0.01 + idx * 0.008) * Math.cos(idx * 1.2 + 0.4);
-            }
-
-            let collisions = 0;
-            placedPositions.forEach(p => { if (Math.hypot(p.lat - lat, p.lng - lng) < 0.005) collisions++; });
-            if (collisions > 0) {
-                lat += (0.0065 * collisions) * Math.sin(collisions);
-                lng += (0.0065 * collisions) * Math.cos(collisions);
-            }
-            placedPositions.push({ lat, lng });
+            const lat = stop.latitude || (stop.coords && stop.coords.lat) || destLat;
+            const lng = stop.longitude || (stop.coords && stop.coords.lng) || destLng;
 
             const sDay = stop.day || 1;
             dayCounters[sDay] = (dayCounters[sDay] || 0) + 1;
@@ -866,15 +1000,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const marker = new google.maps.Marker({
                     position: { lat, lng },
                     map: state.googleMap,
+                    title: stop.placeName,
                     label: { text: labelNumber, color: '#ffffff', fontWeight: 'bold' },
-                    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 16, fillColor: markerColor, fillOpacity: 1, strokeColor: '#ffffff' }
+                    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 17, fillColor: markerColor, fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 2 }
                 });
                 marker.addListener('click', () => focusPlaceOnMapAndDrawer(stop));
                 state.markers.push(marker);
             } else {
                 const marker = L.marker([lat, lng], { 
-                    icon: L.divIcon({ className: 'custom-leaflet-marker', html: `<div class="custom-map-marker" style="background:${markerColor};">${labelNumber}</div>` }) 
+                    title: stop.placeName,
+                    icon: L.divIcon({ 
+                        className: 'custom-leaflet-marker', 
+                        html: `<div class="custom-map-marker" style="background:${markerColor};">${labelNumber}</div>` 
+                    }) 
                 }).addTo(state.leafletMap);
+                marker.bindTooltip(`<b>${labelNumber}. ${stop.placeName}</b>`, { direction: 'top', offset: [0, -10] });
                 marker.on('click', () => focusPlaceOnMapAndDrawer(stop));
                 state.markers.push(marker);
             }
@@ -886,13 +1026,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function fitMapToBounds(stops) {
         if (!stops || stops.length === 0) return;
-        const latLngList = stops.map(s => [s.latitude || s.coords?.lat, s.longitude || s.coords?.lng]).filter(pt => pt[0]);
+        const destLat = state.destinationCoords?.lat || 15.4909;
+        const destLng = state.destinationCoords?.lng || 73.8278;
+
+        // Filter out extreme starting points (> 150 km) when fitting day bounds so user sees local day stops clearly
+        let localStops = stops.filter(s => {
+            const lat = s.latitude || s.coords?.lat;
+            const lng = s.longitude || s.coords?.lng;
+            return lat && lng && (Math.abs(lat - destLat) < 1.5 && Math.abs(lng - destLng) < 1.5);
+        });
+
+        if (localStops.length === 0) localStops = stops;
+
+        const latLngList = localStops.map(s => [s.latitude || s.coords?.lat, s.longitude || s.coords?.lng]).filter(pt => pt[0]);
         if (state.mapEngine === 'google') {
             const bounds = new google.maps.LatLngBounds();
             latLngList.forEach(pt => bounds.extend({ lat: pt[0], lng: pt[1] }));
             state.googleMap.fitBounds(bounds);
         } else if (state.leafletMap) {
-            latLngList.length === 1 ? state.leafletMap.setView(latLngList[0], 14) : state.leafletMap.fitBounds(latLngList, { padding: [50, 50] });
+            latLngList.length === 1 ? state.leafletMap.setView(latLngList[0], 13) : state.leafletMap.fitBounds(latLngList, { padding: [60, 60] });
         }
     }
 
@@ -906,7 +1058,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         for (const [dayKey, dayStops] of Object.entries(dayGroups)) {
-            const validCoords = dayStops.map(s => ({ lat: s.latitude || s.coords?.lat, lng: s.longitude || s.coords?.lng }));
+            const validCoords = dayStops
+                .map(s => ({ lat: s.latitude || s.coords?.lat, lng: s.longitude || s.coords?.lng }))
+                .filter(c => c.lat && c.lng);
             await routeSingleDayLegByLeg(validCoords, getDayColor(dayKey));
         }
     }
@@ -914,16 +1068,49 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function routeSingleDayLegByLeg(coordsList, color) {
         for (let i = 0; i < coordsList.length - 1; i++) {
             const start = coordsList[i], end = coordsList[i + 1];
+            
+            // Check distance between consecutive points
+            const distApproxKm = Math.hypot((end.lat - start.lat) * 111, (end.lng - start.lng) * 111);
+
+            if (distApproxKm > 150) {
+                // Inter-state / long transit line: Draw dashed journey line
+                if (state.leafletMap) {
+                    const transitPoly = L.polyline([[start.lat, start.lng], [end.lat, end.lng]], {
+                        color: '#64748b',
+                        weight: 3,
+                        dashArray: '8, 10',
+                        opacity: 0.8
+                    }).addTo(state.leafletMap);
+                    state.routeLayers.push(transitPoly);
+                }
+                continue;
+            }
+
             if (state.mapEngine === 'google') {
-                const renderer = new google.maps.DirectionsRenderer({ map: state.googleMap, suppressMarkers: true, polylineOptions: { strokeColor: color, strokeWeight: 5 } });
-                state.directionsService.route({ origin: start, destination: end, travelMode: 'DRIVING' }, (res, status) => { if (status === 'OK') renderer.setDirections(res); });
+                const renderer = new google.maps.DirectionsRenderer({ 
+                    map: state.googleMap, 
+                    suppressMarkers: true, 
+                    polylineOptions: { strokeColor: color, strokeWeight: 5 } 
+                });
+                state.directionsService.route({ origin: start, destination: end, travelMode: 'DRIVING' }, (res, status) => { 
+                    if (status === 'OK') renderer.setDirections(res); 
+                });
                 state.routeLayers.push(renderer);
             } else {
-                const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson`).catch(() => null);
-                const data = await res?.json();
-                if (data?.routes?.[0]) {
-                    const poly = L.polyline(data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]), { color, weight: 5 }).addTo(state.leafletMap);
-                    state.routeLayers.push(poly);
+                try {
+                    const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson`);
+                    const data = await res?.json();
+                    if (data?.routes?.[0]?.geometry?.coordinates) {
+                        const poly = L.polyline(data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]), { color, weight: 5, opacity: 0.9 }).addTo(state.leafletMap);
+                        state.routeLayers.push(poly);
+                    } else {
+                        // Fallback connection line if OSRM doesn't have road coverage
+                        const directPoly = L.polyline([[start.lat, start.lng], [end.lat, end.lng]], { color, weight: 4, opacity: 0.85 }).addTo(state.leafletMap);
+                        state.routeLayers.push(directPoly);
+                    }
+                } catch {
+                    const directPoly = L.polyline([[start.lat, start.lng], [end.lat, end.lng]], { color, weight: 4, opacity: 0.85 }).addTo(state.leafletMap);
+                    state.routeLayers.push(directPoly);
                 }
             }
         }
@@ -974,7 +1161,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         elements.placeActivity.textContent = stop.activity || stop.description || '';
         if (stop.tips) { elements.placeTips.textContent = stop.tips; elements.placeTipsRow.classList.remove('hidden'); }
         else { elements.placeTipsRow.classList.add('hidden'); }
-        state.carouselPhotos = stop.photos || [];
+        state.carouselPhotos = (stop.photos || []).filter(u => u && typeof u === 'string' && u.startsWith('http'));
         state.currentPhotoIndex = 0;
         if (state.carouselPhotos.length > 0) {
             elements.carouselMainWrap.classList.remove('hidden');
@@ -991,9 +1178,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function setCarouselPhoto(index) {
+        if (!state.carouselPhotos || state.carouselPhotos.length === 0) return;
         state.currentPhotoIndex = (index + state.carouselPhotos.length) % state.carouselPhotos.length;
-        elements.carouselMainImg.src = state.carouselPhotos[state.currentPhotoIndex];
-        elements.carouselCounter.textContent = `${state.currentPhotoIndex + 1} / ${state.carouselPhotos.length}`;
+        if (elements.carouselMainImg && state.carouselPhotos[state.currentPhotoIndex]) {
+            elements.carouselMainImg.src = state.carouselPhotos[state.currentPhotoIndex];
+        }
+        if (elements.carouselCounter) {
+            elements.carouselCounter.textContent = `${state.currentPhotoIndex + 1} / ${state.carouselPhotos.length}`;
+        }
     }
 
     function changeCarouselPhoto(dir) { setCarouselPhoto(state.currentPhotoIndex + dir); }
