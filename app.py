@@ -236,11 +236,117 @@ KNOWN_COORDINATES = {
     'kovalam': (8.4004, 76.9787),
     'padmanabhaswamy': (8.4828, 76.9436),
     'thekkady': (9.6031, 77.1615),
-    'periyar': (9.4679, 77.1444)
+    'periyar': (9.4679, 77.1444),
+
+    # Andhra Pradesh & Eastern Coast Landmarks
+    'andhra pradesh': (17.6868, 83.2185),
+    'andhra': (17.6868, 83.2185),
+    'visakhapatnam': (17.6868, 83.2185),
+    'vizag': (17.6868, 83.2185),
+    'ins kurusura': (17.7169, 83.3323),
+    'kurusura': (17.7169, 83.3323),
+    'submarine museum': (17.7169, 83.3323),
+    'rk beach': (17.7142, 83.3235),
+    'ramakrishna beach': (17.7142, 83.3235),
+    'kailasagiri': (17.7492, 83.3422),
+    'venkatadri vantillu': (17.7150, 83.3180),
+    'venkatadri': (17.7150, 83.3180),
+    'kamat restaurant': (17.7160, 83.3250),
+    'rushikonda': (17.7818, 83.3855),
+    'araku': (18.3273, 82.8775),
+    'araku valley': (18.3273, 82.8775),
+    'borra caves': (18.2804, 83.0394),
+    'padmapuram': (18.3340, 82.8680),
+    'katiki waterfalls': (18.2885, 83.0040),
+    'simhachalam': (17.7665, 83.2504),
+    'tirupati': (13.6288, 79.4192),
+    'tirumala': (13.6833, 79.3500),
+    'venkateswara': (13.6833, 79.3500),
+    'vijayawada': (16.5062, 80.6480),
+    'kanaka durga': (16.5165, 80.6080),
+    'undavalli caves': (16.4967, 80.5815),
+    'amaravati': (16.5815, 80.3582),
+    'guntur': (16.3067, 80.4365),
+    'rajahmundry': (17.0005, 81.8040),
+    'kakinada': (16.9891, 82.2475),
+    'srisailam': (16.0748, 78.8685),
+    'lepakshi': (13.8050, 77.6086),
+    'gandikota': (14.8146, 78.2863),
+
+    # Hyderabad & Telangana
+    'hyderabad': (17.3850, 78.4867),
+    'charminar': (17.3616, 78.4747),
+    'golconda': (17.3833, 78.4011),
+    'hussain sagar': (17.4239, 78.4738),
+    'ramoji': (17.2543, 78.6808),
+
+    # Tamil Nadu & Karnataka
+    'chennai': (13.0827, 80.2707),
+    'marina beach': (13.0499, 80.2824),
+    'bangalore': (12.9716, 77.5946),
+    'bengaluru': (12.9716, 77.5946),
+    'lalbagh': (12.9507, 77.5848),
+    'cubbon park': (12.9763, 77.5929),
+    'mysore': (12.2958, 76.6394),
+    'coorg': (12.3375, 75.8069),
+    'hampi': (15.3350, 76.4600),
+    'ooty': (11.4102, 76.6950),
+    'kodaikanal': (10.2381, 77.4892),
+    'pondicherry': (11.9416, 79.8083),
+    'puducherry': (11.9416, 79.8083),
+
+    # North India & Himalayas
+    'delhi': (28.6139, 77.2090),
+    'new delhi': (28.6139, 77.2090),
+    'red fort': (28.6562, 77.2410),
+    'qutub minar': (28.5244, 77.1855),
+    'india gate': (28.6129, 77.2295),
+    'agra': (27.1767, 78.0081),
+    'taj mahal': (27.1751, 78.0421),
+    'varanasi': (25.3176, 82.9739),
+    'shimla': (31.1048, 77.1734),
+    'dharamshala': (32.2190, 76.3234),
+    'mcleodganj': (32.2426, 76.3213),
+    'rishikesh': (30.0869, 78.2676),
+    'amritsar': (31.6340, 74.8723),
+    'golden temple': (31.6200, 74.8765),
+    'ladakh': (34.1526, 77.5771),
+    'leh': (34.1526, 77.5771),
+    'srinagar': (34.0837, 74.7973),
+    'gulmarg': (34.0484, 74.3805),
+
+    # Maharashtra & West India
+    'mumbai': (19.0760, 72.8777),
+    'gateway of india': (18.9220, 72.8347),
+    'marine drive mumbai': (18.9432, 72.8230),
+    'lonavala': (18.7557, 73.4091),
+    'pune': (18.5204, 73.8567),
+    'udaipur': (24.5854, 73.7125),
+    'jodhpur': (26.2389, 73.0243),
+    'jaisalmer': (26.9157, 70.9083),
+
+    # International
+    'paris': (48.8566, 2.3522),
+    'eiffel tower': (48.8584, 2.2945),
+    'louvre': (48.8606, 2.3376),
+    'tokyo': (35.6762, 139.6503),
+    'shibuya': (35.6595, 139.7004),
+    'shinjuku': (35.6938, 139.7034),
+    'london': (51.5074, -0.1278),
+    'big ben': (51.5007, -0.1246),
+    'dubai': (25.2048, 55.2708),
+    'burj khalifa': (25.1972, 55.2744),
+    'singapore': (1.3521, 103.8198),
+    'marina bay sands': (1.2838, 103.8591),
+    'bali': (-8.4095, 115.1889),
+    'bangkok': (13.7563, 100.5018),
+    'phuket': (7.8804, 98.3923),
+    'rome': (41.9028, 12.4964),
+    'colosseum': (41.8902, 12.4922)
 }
 
-def is_valid_local_coord(coord, dest_center, max_dist_km=75):
-    """Checks if a coordinate is strictly within local range of the destination city."""
+def is_valid_local_coord(coord, dest_center, max_dist_km=250):
+    """Checks if a coordinate is within realistic travel range of the destination region."""
     if not coord or not dest_center:
         return False
     try:
@@ -267,35 +373,62 @@ def resolve_coordinates(query, fallback_center=None, index=0, total=1):
         encoded = urllib.parse.quote(query)
         req = urllib.request.Request(
             f"https://nominatim.openstreetmap.org/search?format=json&limit=1&q={encoded}",
-            headers={'User-Agent': 'AITripPlanner/2.0'}
+            headers={'User-Agent': 'AITripPlanner/2.0 (travel-planner)'}
         )
         with urllib.request.urlopen(req, timeout=2) as res:
             data = json.loads(res.read().decode('utf-8'))
             if data and len(data) > 0:
                 candidate = {'lat': float(data[0]['lat']), 'lng': float(data[0]['lon'])}
-                if fallback_center and is_valid_local_coord(candidate, fallback_center, 75):
+                if not fallback_center or is_valid_local_coord(candidate, fallback_center, 250):
                     return candidate
     except Exception:
         pass
     
-    # Compute deterministic local offset around city center
+    # Compute deterministic local offset around region center
     if fallback_center:
         import math
         angle = (2 * math.pi * index) / max(total, 1) + 0.4
-        radius = 0.012 + ((index % 4) * 0.008)
+        radius = 0.015 + ((index % 5) * 0.009)
         return {
             'lat': round(fallback_center['lat'] + radius * math.sin(angle), 5),
             'lng': round(fallback_center['lng'] + radius * math.cos(angle), 5)
         }
     
-    return {'lat': 28.6139, 'lng': 77.2090}
+    return {'lat': 17.6868, 'lng': 83.2185} if 'andhra' in q_lower else {'lat': 28.6139, 'lng': 77.2090}
 
 def geocode_destination(destination):
-    dest_lower = destination.lower()
+    dest_lower = destination.lower().strip()
+    # Check known destinations first
     for key, coords in KNOWN_COORDINATES.items():
-        if key in dest_lower:
+        if key == dest_lower or key in dest_lower:
             return {'lat': coords[0], 'lng': coords[1]}
-    return resolve_coordinates(destination, None, 0, 1)
+    
+    # Try live geocoding with Nominatim
+    try:
+        encoded = urllib.parse.quote(destination)
+        req = urllib.request.Request(
+            f"https://nominatim.openstreetmap.org/search?format=json&limit=1&q={encoded}",
+            headers={'User-Agent': 'AITripPlanner/2.0 (travel-planner)'}
+        )
+        with urllib.request.urlopen(req, timeout=3) as res:
+            data = json.loads(res.read().decode('utf-8'))
+            if data and len(data) > 0:
+                return {'lat': float(data[0]['lat']), 'lng': float(data[0]['lon'])}
+    except Exception as e:
+        print(f"Destination geocode error for {destination}: {e}")
+        
+    if 'andhra' in dest_lower or 'vizag' in dest_lower or 'visakhapatnam' in dest_lower:
+        return {'lat': 17.6868, 'lng': 83.2185}
+    if 'goa' in dest_lower:
+        return {'lat': 15.4909, 'lng': 73.8278}
+    if 'manali' in dest_lower:
+        return {'lat': 32.2396, 'lng': 77.1887}
+    if 'jaipur' in dest_lower:
+        return {'lat': 26.9124, 'lng': 75.7873}
+    if 'kerala' in dest_lower or 'kochi' in dest_lower:
+        return {'lat': 9.9312, 'lng': 76.2673}
+        
+    return {'lat': 28.6139, 'lng': 77.2090}
 
 def calculate_distance_km(c1, c2):
     """Calculates haversine distance in km between two coordinates."""
