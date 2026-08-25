@@ -118,9 +118,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // =========================================================================
     // 1. Initial Setup & Event Listeners
     // =========================================================================
-    initFormHandling();
-    await initializeMapEngine();
     setupEventListeners();
+    initFormHandling();
+    initializeMapEngine().catch(err => console.warn('Deferred map engine init:', err));
 
     function initFormHandling() {
         if (elements.startDateInput && elements.endDateInput && elements.durationInput) {
@@ -189,6 +189,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function setupEventListeners() {
+        // Direct Submit Button Click
+        if (elements.submitButton) {
+            elements.submitButton.addEventListener('click', (e) => {
+                if (elements.preferencesForm && !elements.preferencesForm.checkValidity()) {
+                    elements.preferencesForm.reportValidity();
+                    return;
+                }
+                handleFormSubmit(e);
+            });
+        }
+
+        // Form Submit
         if (elements.preferencesForm) {
             elements.preferencesForm.addEventListener('submit', handleFormSubmit);
         }
@@ -484,39 +496,96 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 3. Form Submission & Data Rendering
     // =========================================================================
     async function handleFormSubmit(e) {
-        e.preventDefault();
-        const formData = new FormData(elements.preferencesForm);
-        const destination = formData.get('destination')?.trim();
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
 
-        if (!destination) return;
+        const formData = elements.preferencesForm ? new FormData(elements.preferencesForm) : null;
+        const destination = formData ? formData.get('destination')?.trim() : elements.destinationInput?.value?.trim();
+
+        if (!destination) {
+            showFormError('Please enter a destination name (e.g. Andhra Pradesh, Manali, Paris, Tokyo).');
+            if (elements.destinationInput) {
+                elements.destinationInput.focus();
+            }
+            return;
+        }
+
+        hideFormError();
         setLoadingState(true);
 
+        const durationVal = formData?.get('duration') || elements.durationInput?.value || '3';
+        const checkedInterests = formData ? Array.from(formData.getAll('interests')) : [];
+
+        const requestPayload = {
+            destination: destination,
+            startingPoint: formData?.get('startingPoint')?.trim() || elements.startingPointInput?.value?.trim() || '',
+            startDate: formData?.get('startDate') || elements.startDateInput?.value || 'Upcoming',
+            endDate: formData?.get('endDate') || elements.endDateInput?.value || 'Upcoming',
+            duration: parseInt(durationVal, 10) || 3,
+            interests: checkedInterests,
+            budget: formData?.get('budget') || 'Moderate / Balanced (Comfortable & versatile)',
+            pace: formData?.get('pace') || 'Balanced (Best of both)',
+            specialConsiderations: formData?.get('specialConsiderations')?.trim() || 'None'
+        };
+
         try {
+            updateLoadingStatus('Generating AI Itinerary with Gemini...');
             const res = await fetch('/generate_itinerary', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    destination,
-                    startDate: formData.get('startDate'),
-                    duration: formData.get('duration'),
-                    interests: Array.from(formData.getAll('interests')),
-                    budget: formData.get('budget'),
-                    pace: formData.get('pace')
-                })
+                body: JSON.stringify(requestPayload)
             });
 
             const data = await res.json();
+            if (!res.ok || data.error) {
+                throw new Error(data.error || 'Failed to generate itinerary. Please check your inputs and try again.');
+            }
+
+            updateLoadingStatus('Resolving Place IDs & Road Routes...');
             renderTripWorkspace(data);
+
         } catch (err) {
-            console.error(err);
+            console.error('Generation error:', err);
+            showFormError(err.message || 'An error occurred while generating your trip. Please try again.');
         } finally {
             setLoadingState(false);
         }
     }
 
+    function showFormError(msg) {
+        if (elements.formErrorMessage) {
+            elements.formErrorMessage.textContent = msg;
+            elements.formErrorMessage.classList.remove('hidden');
+            elements.formErrorMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } else {
+            alert(msg);
+        }
+    }
+
+    function hideFormError() {
+        if (elements.formErrorMessage) {
+            elements.formErrorMessage.classList.add('hidden');
+        }
+    }
+
     function setLoadingState(loading) {
-        if (elements.submitButton) elements.submitButton.disabled = loading;
-        if (elements.mapLoading) elements.mapLoading.classList.toggle('hidden', !loading);
+        if (elements.submitButton) {
+            elements.submitButton.disabled = loading;
+            elements.submitButton.innerHTML = loading
+                ? '<i class="fas fa-spinner fa-spin"></i> <span>Creating Your Adventure...</span>'
+                : '<i class="fas fa-magic"></i> <span>Generate AI Itinerary & Map</span>';
+        }
+        if (elements.mapLoading) {
+            elements.mapLoading.classList.toggle('hidden', !loading);
+        }
+    }
+
+    function updateLoadingStatus(text) {
+        if (elements.mapLoadingText) {
+            elements.mapLoadingText.textContent = text;
+        }
     }
 
     function renderTripWorkspace(data) {
