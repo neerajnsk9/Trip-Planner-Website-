@@ -1,18 +1,21 @@
 /**
  * AI Trip Planner & Interactive Map Explorer
- * Exact Place Photos, Day-wise Marker Isolation, Real Road Routing (OSRM & Google Directions),
- * Day Place Cards, and Full AI Synergy.
+ * Production-Quality 2-Column Travel Workspace, Verified Places, Exact Photos,
+ * Day-Wise Marker Isolation, Leg-by-Leg Road Routing, and Full AI Assistant Synergy.
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // State management
+    // Application State
     const state = {
         destination: '',
         destinationCoords: { lat: 28.6139, lng: 77.2090 },
         stops: [],
-        activeDay: '1', // Default to Day 1
+        days: [],
+        tripOverview: null,
+        activeDay: '1', // Default to Day 1 after generation
         activePlaceId: null,
         activePlace: null,
+        activeTab: 'sequence',
         carouselPhotos: [],
         currentPhotoIndex: 0,
         mapEngine: 'leaflet',
@@ -21,40 +24,50 @@ document.addEventListener('DOMContentLoaded', async () => {
         markers: [],
         directionsRenderer: null,
         directionsService: null,
-        routeLayer: null,
         routeLayers: [],
         apiKeyConfig: null,
         isChatbotMinimized: false
     };
 
-    // DOM Elements
+    // DOM Elements Cache
     const elements = {
         preferencesForm: document.getElementById('itineraryForm'),
         destinationInput: document.getElementById('destination'),
+        startingPointInput: document.getElementById('startingPoint'),
+        useCurrentLocationBtn: document.getElementById('useCurrentLocationBtn'),
         startDateInput: document.getElementById('startDate'),
         endDateInput: document.getElementById('endDate'),
         durationInput: document.getElementById('duration'),
         submitButton: document.getElementById('generateBtn'),
-        startPlanningBtn: document.getElementById('startPlanning'),
-        quickChips: document.querySelectorAll('.quick-chip'),
+        formErrorMessage: document.getElementById('formErrorMessage'),
 
         tripExplorerSection: document.getElementById('trip-explorer-section'),
         explorerDestTitle: document.getElementById('explorer-destination-title'),
-        itineraryContent: document.getElementById('itinerary-content'),
+        explorerSubtitle: document.getElementById('explorer-subtitle'),
         downloadPdfBtn: document.getElementById('downloadPdf'),
         planAnotherBtn: document.getElementById('planAnother'),
         tripGrid: document.getElementById('tripGrid'),
-        viewToggleSplit: document.getElementById('viewToggleSplit'),
-        viewToggleItinerary: document.getElementById('viewToggleItinerary'),
-        viewToggleMap: document.getElementById('viewToggleMap'),
 
-        mapContainer: document.getElementById('trip-map'),
-        mapLoading: document.getElementById('map-loading-indicator'),
-        mapPlaceSearch: document.getElementById('mapPlaceSearch'),
-        clearMapSearch: document.getElementById('clearMapSearch'),
+        tripOverviewCard: document.getElementById('tripOverviewCard'),
+        tripVibeTag: document.getElementById('tripVibeTag'),
+        tripDurationTag: document.getElementById('tripDurationTag'),
+        tripSummaryText: document.getElementById('tripSummaryText'),
+        tripBestSeason: document.getElementById('tripBestSeason'),
+
+        tabBtnSequence: document.getElementById('tabBtnSequence'),
+        tabBtnGuide: document.getElementById('tabBtnGuide'),
+        sequenceTabView: document.getElementById('sequenceTabView'),
+        guideTabView: document.getElementById('guideTabView'),
+        sidebarDayFilters: document.getElementById('sidebarDayFilters'),
+        timelineSequenceList: document.getElementById('timelineSequenceList'),
+        itineraryContent: document.getElementById('itinerary-content'),
+
         mapDayFilters: document.getElementById('mapDayFilters'),
         toggleRouteBtn: document.getElementById('toggleRouteBtn'),
         fitMapBoundsBtn: document.getElementById('fitMapBoundsBtn'),
+        mapContainer: document.getElementById('trip-map'),
+        mapLoading: document.getElementById('map-loading-indicator'),
+        mapLoadingText: document.getElementById('mapLoadingText'),
 
         dayPlaceCardsSection: document.getElementById('day-place-cards-section'),
         dayCardsTitle: document.getElementById('dayCardsTitle'),
@@ -66,10 +79,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         placeCategory: document.getElementById('placeCategory'),
         placeName: document.getElementById('placeName'),
         placeRating: document.getElementById('placeRating'),
-        placeOpenStatus: document.getElementById('placeOpenStatus'),
         placeDayTag: document.getElementById('placeDayTag'),
         placeAddress: document.getElementById('placeAddress'),
         placeActivity: document.getElementById('placeActivity'),
+        placeTips: document.getElementById('placeTips'),
+        placeTipsRow: document.getElementById('placeTipsRow'),
         copyAddressBtn: document.getElementById('copyAddressBtn'),
         getDirectionsBtn: document.getElementById('getDirectionsBtn'),
         askAiAboutPlaceBtn: document.getElementById('askAiAboutPlaceBtn'),
@@ -99,105 +113,318 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // =========================================================================
-    // 1. Initial Setup & Map Engine Initialization
+    // 1. Initial Setup & Event Listeners
     // =========================================================================
-    setDefaultDates();
+    initFormHandling();
     await initializeMapEngine();
+    setupEventListeners();
 
-    function setDefaultDates() {
-        const today = new Date();
-        const start = new Date(today);
-        start.setDate(today.getDate() + 7);
-        const end = new Date(start);
-        end.setDate(start.getDate() + 3);
+    function initFormHandling() {
+        // Ensure form inputs start clean with NO unwanted automatic pre-fills
+        if (elements.startDateInput && elements.endDateInput && elements.durationInput) {
+            elements.startDateInput.addEventListener('change', () => {
+                if (elements.startDateInput.value) {
+                    elements.endDateInput.min = elements.startDateInput.value;
+                    if (elements.endDateInput.value && elements.endDateInput.value < elements.startDateInput.value) {
+                        elements.endDateInput.value = elements.startDateInput.value;
+                    }
+                    calculateDurationFromDates();
+                }
+            });
 
-        if (elements.startDateInput && !elements.startDateInput.value) {
-            elements.startDateInput.value = start.toISOString().split('T')[0];
+            elements.endDateInput.addEventListener('change', () => {
+                calculateDurationFromDates();
+            });
+
+            elements.durationInput.addEventListener('input', () => {
+                if (elements.startDateInput.value && elements.durationInput.value) {
+                    const start = new Date(elements.startDateInput.value);
+                    const days = parseInt(elements.durationInput.value, 10);
+                    if (!isNaN(days) && days > 0) {
+                        const end = new Date(start);
+                        end.setDate(start.getDate() + days - 1);
+                        elements.endDateInput.value = end.toISOString().split('T')[0];
+                    }
+                }
+            });
         }
-        if (elements.endDateInput && !elements.endDateInput.value) {
-            elements.endDateInput.value = end.toISOString().split('T')[0];
+
+        // Geolocation button
+        if (elements.useCurrentLocationBtn) {
+            elements.useCurrentLocationBtn.addEventListener('click', () => {
+                if ('geolocation' in navigator) {
+                    elements.useCurrentLocationBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Locating...';
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                            elements.startingPointInput.value = `Current Location (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)})`;
+                            elements.useCurrentLocationBtn.innerHTML = '<i class="fas fa-check"></i> Found';
+                            setTimeout(() => {
+                                elements.useCurrentLocationBtn.innerHTML = '<i class="fas fa-crosshairs"></i> Near Me';
+                            }, 2500);
+                        },
+                        (err) => {
+                            console.warn('Geolocation error:', err);
+                            elements.useCurrentLocationBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Denied';
+                            setTimeout(() => {
+                                elements.useCurrentLocationBtn.innerHTML = '<i class="fas fa-crosshairs"></i> Near Me';
+                            }, 2500);
+                        }
+                    );
+                }
+            });
         }
     }
 
+    function calculateDurationFromDates() {
+        if (elements.startDateInput.value && elements.endDateInput.value) {
+            const start = new Date(elements.startDateInput.value);
+            const end = new Date(elements.endDateInput.value);
+            const diffTime = end - start;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            if (diffDays > 0) {
+                elements.durationInput.value = Math.min(Math.max(diffDays, 1), 14);
+            }
+        }
+    }
+
+    function setupEventListeners() {
+        // Form submit
+        if (elements.preferencesForm) {
+            elements.preferencesForm.addEventListener('submit', handleFormSubmit);
+        }
+
+        // Workspace tab switcher
+        if (elements.tabBtnSequence) {
+            elements.tabBtnSequence.addEventListener('click', () => switchWorkspaceTab('sequence'));
+        }
+        if (elements.tabBtnGuide) {
+            elements.tabBtnGuide.addEventListener('click', () => switchWorkspaceTab('guide'));
+        }
+
+        // PDF & Plan Another
+        if (elements.downloadPdfBtn) {
+            elements.downloadPdfBtn.addEventListener('click', handleDownloadPdf);
+        }
+        if (elements.planAnotherBtn) {
+            elements.planAnotherBtn.addEventListener('click', () => {
+                elements.tripExplorerSection.classList.add('hidden');
+                document.getElementById('preferences-form').scrollIntoView({ behavior: 'smooth' });
+            });
+        }
+
+        // Map toolbar tools
+        if (elements.toggleRouteBtn) {
+            elements.toggleRouteBtn.addEventListener('click', () => {
+                elements.toggleRouteBtn.classList.toggle('active');
+                if (elements.toggleRouteBtn.classList.contains('active')) {
+                    const filtered = state.activeDay === 'all'
+                        ? state.stops
+                        : state.stops.filter(s => String(s.day) === state.activeDay);
+                    drawRealRoadRoute(filtered);
+                } else {
+                    clearRoute();
+                }
+            });
+        }
+
+        if (elements.fitMapBoundsBtn) {
+            elements.fitMapBoundsBtn.addEventListener('click', () => {
+                const filtered = state.activeDay === 'all'
+                    ? state.stops
+                    : state.stops.filter(s => String(s.day) === state.activeDay);
+                fitMapToBounds(filtered);
+            });
+        }
+
+        // Close drawer
+        if (elements.closePlaceDetailsBtn) {
+            elements.closePlaceDetailsBtn.addEventListener('click', () => {
+                elements.placeDetailsCard.classList.add('hidden');
+            });
+        }
+
+        // Copy address
+        if (elements.copyAddressBtn) {
+            elements.copyAddressBtn.addEventListener('click', () => {
+                if (state.activePlace && state.activePlace.formattedAddress) {
+                    navigator.clipboard.writeText(state.activePlace.formattedAddress);
+                    elements.copyAddressBtn.innerHTML = '<i class="fas fa-check" style="color:#10b981;"></i>';
+                    setTimeout(() => {
+                        elements.copyAddressBtn.innerHTML = '<i class="fas fa-copy"></i>';
+                    }, 2000);
+                }
+            });
+        }
+
+        // Get Directions
+        if (elements.getDirectionsBtn) {
+            elements.getDirectionsBtn.addEventListener('click', () => {
+                if (state.activePlace) {
+                    const lat = state.activePlace.latitude || (state.activePlace.coords && state.activePlace.coords.lat);
+                    const lng = state.activePlace.longitude || (state.activePlace.coords && state.activePlace.coords.lng);
+                    const name = encodeURIComponent(state.activePlace.placeName || 'Destination');
+                    if (lat && lng) {
+                        window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&destination_place_id=${state.activePlace.placeId || ''}`, '_blank');
+                    } else {
+                        window.open(`https://www.google.com/maps/search/?api=1&query=${name}`, '_blank');
+                    }
+                }
+            });
+        }
+
+        // Ask AI about this place
+        if (elements.askAiAboutPlaceBtn) {
+            elements.askAiAboutPlaceBtn.addEventListener('click', () => {
+                if (state.activePlace) {
+                    const pName = state.activePlace.placeName;
+                    openChatbotWithMessage(`Tell me what is special about ${pName}, best photo spots, and nearby food recommendations.`);
+                }
+            });
+        }
+
+        // Carousel controls
+        if (elements.carouselPrev) {
+            elements.carouselPrev.addEventListener('click', () => changeCarouselPhoto(-1));
+        }
+        if (elements.carouselNext) {
+            elements.carouselNext.addEventListener('click', () => changeCarouselPhoto(1));
+        }
+        if (elements.carouselZoom) {
+            elements.carouselZoom.addEventListener('click', () => {
+                if (state.carouselPhotos.length > 0) {
+                    openLightbox(state.carouselPhotos[state.currentPhotoIndex], state.activePlace?.placeName || '');
+                }
+            });
+        }
+        if (elements.closeLightbox) {
+            elements.closeLightbox.addEventListener('click', closeLightbox);
+        }
+
+        // Chatbot triggers
+        if (elements.toggleChatbotBtn) {
+            elements.toggleChatbotBtn.addEventListener('click', toggleChatbot);
+        }
+        if (elements.chatbotHeader) {
+            elements.chatbotHeader.addEventListener('click', (e) => {
+                if (e.target !== elements.toggleChatbotBtn && !elements.toggleChatbotBtn.contains(e.target)) {
+                    toggleChatbot();
+                }
+            });
+        }
+        if (elements.navChatbotBtn) {
+            elements.navChatbotBtn.addEventListener('click', () => {
+                if (elements.chatbotContainer.classList.contains('minimized')) {
+                    toggleChatbot();
+                }
+                elements.userMessageInput.focus();
+            });
+        }
+        if (elements.sendMessageBtn) {
+            elements.sendMessageBtn.addEventListener('click', handleSendChatMessage);
+        }
+        if (elements.userMessageInput) {
+            elements.userMessageInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleSendChatMessage();
+            });
+        }
+        elements.chatChips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                elements.userMessageInput.value = chip.dataset.msg;
+                handleSendChatMessage();
+            });
+        });
+    }
+
+    function switchWorkspaceTab(tab) {
+        state.activeTab = tab;
+        if (tab === 'sequence') {
+            elements.tabBtnSequence.classList.add('active');
+            elements.tabBtnGuide.classList.remove('active');
+            elements.sequenceTabView.classList.remove('hidden');
+            elements.guideTabView.classList.add('hidden');
+        } else {
+            elements.tabBtnSequence.classList.remove('active');
+            elements.tabBtnGuide.classList.add('active');
+            elements.sequenceTabView.classList.add('hidden');
+            elements.guideTabView.classList.remove('hidden');
+        }
+    }
+
+    // =========================================================================
+    // 2. Map Engine Initialization (Google Maps / Leaflet CARTO)
+    // =========================================================================
     async function initializeMapEngine() {
         try {
             const res = await fetch('/api/config');
             state.apiKeyConfig = await res.json();
+        } catch (err) {
+            state.apiKeyConfig = { hasGoogleMapsKey: false };
+        }
 
-            if (state.apiKeyConfig.googleMapsApiKey) {
-                await loadGoogleMapsScript(state.apiKeyConfig.googleMapsApiKey);
-            } else {
-                initLeafletMap([28.6139, 77.2090], 6);
-            }
-        } catch (e) {
-            initLeafletMap([28.6139, 77.2090], 6);
+        if (state.apiKeyConfig.hasGoogleMapsKey && state.apiKeyConfig.googleMapsApiKey) {
+            loadGoogleMapsScript(state.apiKeyConfig.googleMapsApiKey);
+        } else {
+            initLeafletMap();
         }
     }
 
     function loadGoogleMapsScript(apiKey) {
-        return new Promise((resolve) => {
-            if (window.google && window.google.maps) {
-                initGoogleMap({ lat: 28.6139, lng: 77.2090 }, 6);
-                resolve();
-                return;
-            }
-
-            const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry`;
-            script.async = true;
-            script.defer = true;
-            script.onload = () => {
-                initGoogleMap({ lat: 28.6139, lng: 77.2090 }, 6);
-                setupGoogleAutocomplete();
-                resolve();
-            };
-            script.onerror = () => {
-                initLeafletMap([28.6139, 77.2090], 6);
-                resolve();
-            };
-            document.head.appendChild(script);
-        });
+        if (window.google && window.google.maps) {
+            initGoogleMap();
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry&callback=initGoogleMapCallback`;
+        script.async = true;
+        script.defer = true;
+        window.initGoogleMapCallback = () => {
+            initGoogleMap();
+        };
+        script.onerror = () => {
+            console.warn('Google Maps script failed to load. Falling back to Leaflet CARTO.');
+            initLeafletMap();
+        };
+        document.head.appendChild(script);
     }
 
-    function initGoogleMap(center, zoom) {
+    function initGoogleMap() {
         state.mapEngine = 'google';
-        if (!elements.mapContainer) return;
-
+        const center = state.destinationCoords || { lat: 28.6139, lng: 77.2090 };
         state.googleMap = new google.maps.Map(elements.mapContainer, {
             center: center,
-            zoom: zoom,
+            zoom: 12,
+            mapTypeId: google.maps.MapTypeId.ROADMAP,
             mapTypeControl: true,
-            streetViewControl: true,
-            fullscreenControl: false,
-            zoomControl: true,
-            styles: [
-                { featureType: "poi", elementType: "labels", stylers: [{ visibility: "on" }] },
-                { featureType: "water", stylers: [{ color: "#dbeafe" }] }
-            ]
+            streetViewControl: false,
+            fullscreenControl: true,
+            zoomControl: true
         });
 
         state.directionsService = new google.maps.DirectionsService();
         state.directionsRenderer = new google.maps.DirectionsRenderer({
             map: state.googleMap,
             suppressMarkers: true,
-            polylineOptions: { strokeColor: '#0284c7', strokeWeight: 5, strokeOpacity: 0.9 }
+            polylineOptions: {
+                strokeColor: '#0284c7',
+                strokeWeight: 5,
+                strokeOpacity: 0.85
+            }
         });
     }
 
-    function initLeafletMap(center, zoom) {
+    function initLeafletMap() {
         state.mapEngine = 'leaflet';
-        if (!elements.mapContainer || state.leafletMap) return;
+        if (state.leafletMap) return;
 
-        elements.mapContainer.innerHTML = '';
+        const center = [state.destinationCoords.lat || 28.6139, state.destinationCoords.lng || 77.2090];
         state.leafletMap = L.map(elements.mapContainer, {
             zoomControl: true,
-            scrollWheelZoom: true
-        }).setView(center, zoom);
+            attributionControl: true
+        }).setView(center, 12);
 
-        // High performance CartoDB Voyager tiles (crisp, beautiful, Google Maps-like)
+        // Modern CARTO Positron tile layer
         L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
             maxZoom: 19,
-            subdomains: 'abcd',
             attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap'
         }).addTo(state.leafletMap);
     }
@@ -210,74 +437,197 @@ document.addEventListener('DOMContentLoaded', async () => {
                 google.maps.event.trigger(state.googleMap, 'resize');
             }
         }, 80);
-        setTimeout(() => {
-            if (state.mapEngine === 'leaflet' && state.leafletMap) {
-                state.leafletMap.invalidateSize();
-            }
-        }, 300);
     }
 
     window.addEventListener('resize', ensureMapSize);
 
     // =========================================================================
-    // 2. Day-Wise Map & Strict Marker Isolation System
+    // 3. Form Submission & Structured Itinerary Generation
     // =========================================================================
-    function updateMapWithStops(stops, destination, destinationCoords) {
-        state.stops = stops || [];
-        state.destination = destination;
-        state.destinationCoords = destinationCoords || { lat: 28.6139, lng: 77.2090 };
+    async function handleFormSubmit(e) {
+        e.preventDefault();
+        const formData = new FormData(elements.preferencesForm);
+        const destination = formData.get('destination')?.trim();
 
-        // Default to Day 1
+        if (!destination) {
+            showFormError('Please enter a destination.');
+            return;
+        }
+
+        hideFormError();
+        setLoadingState(true);
+
+        const checkedInterests = Array.from(formData.getAll('interests'));
+        const requestPayload = {
+            destination: destination,
+            startingPoint: formData.get('startingPoint')?.trim() || '',
+            startDate: formData.get('startDate') || 'Upcoming',
+            endDate: formData.get('endDate') || 'Upcoming',
+            duration: formData.get('duration') || 3,
+            interests: checkedInterests,
+            budget: formData.get('budget'),
+            pace: formData.get('pace'),
+            specialConsiderations: formData.get('specialConsiderations')?.trim() || 'None'
+        };
+
+        try {
+            updateLoadingStatus('Generating AI Itinerary with Gemini...');
+            const res = await fetch('/generate_itinerary', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestPayload)
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to generate itinerary.');
+            }
+
+            updateLoadingStatus('Resolving Place IDs & Road Routes...');
+            renderTripWorkspace(data);
+
+        } catch (err) {
+            console.error('Generation error:', err);
+            showFormError(err.message || 'An error occurred while generating your trip.');
+        } finally {
+            setLoadingState(false);
+        }
+    }
+
+    function showFormError(msg) {
+        if (elements.formErrorMessage) {
+            elements.formErrorMessage.textContent = msg;
+            elements.formErrorMessage.classList.remove('hidden');
+        }
+    }
+
+    function hideFormError() {
+        if (elements.formErrorMessage) {
+            elements.formErrorMessage.classList.add('hidden');
+        }
+    }
+
+    function setLoadingState(loading) {
+        if (elements.submitButton) {
+            elements.submitButton.disabled = loading;
+            elements.submitButton.innerHTML = loading
+                ? '<i class="fas fa-spinner fa-spin"></i> <span>Creating Your Adventure...</span>'
+                : '<i class="fas fa-magic"></i> <span>Generate AI Itinerary & Map</span>';
+        }
+        if (elements.mapLoading) {
+            elements.mapLoading.classList.toggle('hidden', !loading);
+        }
+    }
+
+    function updateLoadingStatus(text) {
+        if (elements.mapLoadingText) {
+            elements.mapLoadingText.textContent = text;
+        }
+    }
+
+    // =========================================================================
+    // 4. Render Trip Workspace & Synchronize Data
+    // =========================================================================
+    function renderTripWorkspace(data) {
+        state.destination = data.destination;
+        state.destinationCoords = data.destinationCoords || { lat: 28.6139, lng: 77.2090 };
+        state.stops = data.stops || [];
+        state.days = data.days || [];
+        state.tripOverview = data.tripOverview || {};
+
+        // Update Top Bar & Header
+        if (elements.explorerDestTitle) {
+            elements.explorerDestTitle.textContent = `${data.destination} Itinerary & Map`;
+        }
+        if (elements.explorerSubtitle) {
+            elements.explorerSubtitle.textContent = `A curated ${data.tripOverview?.duration || 3}-day journey across ${state.stops.length} verified stops.`;
+        }
+
+        // Update Trip Overview Card
+        if (elements.tripVibeTag) {
+            elements.tripVibeTag.innerHTML = `<i class="fas fa-sparkles"></i> ${data.tripOverview?.tripVibe || 'Scenic Exploration'}`;
+        }
+        if (elements.tripDurationTag) {
+            elements.tripDurationTag.innerHTML = `<i class="fas fa-calendar"></i> ${data.tripOverview?.duration || 3} Days`;
+        }
+        if (elements.tripSummaryText) {
+            elements.tripSummaryText.textContent = data.tripOverview?.summary || `Curated itinerary exploring ${data.destination}.`;
+        }
+        if (elements.tripBestSeason) {
+            elements.tripBestSeason.innerHTML = `<i class="fas fa-sun"></i> Best Season: ${data.tripOverview?.bestTimeToVisit || 'Oct - Mar'}`;
+        }
+
+        // Render Markdown Guide Content
+        if (elements.itineraryContent) {
+            elements.itineraryContent.innerHTML = formatMarkdownItinerary(data.itinerary || '');
+        }
+
+        // Show Workspace
+        elements.tripExplorerSection.classList.remove('hidden');
+        elements.tripExplorerSection.scrollIntoView({ behavior: 'smooth' });
+
+        // Set active day to Day 1
         const availableDays = [...new Set(state.stops.map(s => String(s.day || 1)))];
         state.activeDay = availableDays.length > 0 ? availableDays[0] : '1';
 
-        renderDayFilterChips(state.stops);
+        // Render Day Filter Pills on both Map & Sidebar
+        renderDayFilters(state.stops);
+
+        // Render Day Stops & Map
         ensureMapSize();
         selectDay(state.activeDay);
     }
 
-    function renderDayFilterChips(stops) {
-        if (!elements.mapDayFilters) return;
+    function renderDayFilters(stops) {
+        const uniqueDays = [...new Set(stops.map(s => s.day || 1))].sort((a, b) => a - b);
 
-        const days = [...new Set(stops.map(s => s.day || 1))].sort((a, b) => a - b);
-        let chipsHtml = `<button class="day-filter-chip ${state.activeDay === 'all' ? 'active' : ''}" data-day="all"><i class="fas fa-globe"></i> All Days</button>`;
+        let pillsHtml = `<button class="map-day-chip ${state.activeDay === 'all' ? 'active' : ''}" data-day="all"><i class="fas fa-globe"></i> All Days</button>`;
+        let sidebarPillsHtml = `<button class="day-pill ${state.activeDay === 'all' ? 'active' : ''}" data-day="all"><i class="fas fa-globe"></i> All Days</button>`;
 
-        days.forEach(day => {
-            chipsHtml += `<button class="day-filter-chip ${state.activeDay === String(day) ? 'active' : ''}" data-day="${day}"><i class="fas fa-calendar-day"></i> Day ${day}</button>`;
+        uniqueDays.forEach(day => {
+            pillsHtml += `<button class="map-day-chip ${state.activeDay === String(day) ? 'active' : ''}" data-day="${day}"><i class="fas fa-calendar-day"></i> Day ${day}</button>`;
+            sidebarPillsHtml += `<button class="day-pill ${state.activeDay === String(day) ? 'active' : ''}" data-day="${day}"><i class="fas fa-calendar-day"></i> Day ${day}</button>`;
         });
 
-        elements.mapDayFilters.innerHTML = chipsHtml;
-
-        elements.mapDayFilters.querySelectorAll('.day-filter-chip').forEach(chip => {
-            chip.addEventListener('click', () => {
-                const targetDay = chip.dataset.day;
-                selectDay(targetDay);
+        if (elements.mapDayFilters) {
+            elements.mapDayFilters.innerHTML = pillsHtml;
+            elements.mapDayFilters.querySelectorAll('.map-day-chip').forEach(chip => {
+                chip.addEventListener('click', () => selectDay(chip.dataset.day));
             });
-        });
+        }
+
+        if (elements.sidebarDayFilters) {
+            elements.sidebarDayFilters.innerHTML = sidebarPillsHtml;
+            elements.sidebarDayFilters.querySelectorAll('.day-pill').forEach(pill => {
+                pill.addEventListener('click', () => selectDay(pill.dataset.day));
+            });
+        }
     }
 
+    // =========================================================================
+    // 5. Day-Wise Map Control & Marker Isolation System
+    // =========================================================================
     function selectDay(day) {
         state.activeDay = String(day);
 
-        // Update day chips active state
-        if (elements.mapDayFilters) {
-            elements.mapDayFilters.querySelectorAll('.day-filter-chip').forEach(chip => {
-                chip.classList.toggle('active', chip.dataset.day === state.activeDay);
-            });
-        }
+        // Update active class on all day pills
+        document.querySelectorAll('.map-day-chip, .day-pill').forEach(pill => {
+            pill.classList.toggle('active', pill.dataset.day === state.activeDay);
+        });
 
         // 1. Strict Clear of all previous markers & routes
         clearAllMarkers();
         clearRoute();
         ensureMapSize();
 
-        // 2. Filter stops strictly for the selected day (or all)
+        // 2. Filter stops strictly for selected day
         const filteredStops = state.activeDay === 'all'
             ? state.stops
             : state.stops.filter(s => String(s.day) === state.activeDay);
 
-        // 3. Render Day Place Cards list below map
-        renderDayPlaceCards(filteredStops, state.activeDay);
+        // 3. Render Timeline Sequence List (Left Column) & Bottom Strip
+        renderTimelineSequence(filteredStops, state.activeDay);
+        renderBottomCardsStrip(filteredStops, state.activeDay);
 
         if (!filteredStops || filteredStops.length === 0) {
             if (state.destinationCoords) {
@@ -292,11 +642,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const placedPositions = [];
         const dayCounters = {};
 
-        // 4. Render numbered markers strictly for the filtered stops with anti-overlap positioning
+        // 4. Render numbered markers with anti-overlap collision avoidance
         filteredStops.forEach((stop, idx) => {
             let lat = stop.latitude || (stop.coords && stop.coords.lat) || destLat;
             let lng = stop.longitude || (stop.coords && stop.coords.lng) || destLng;
-            
+
             // Geographic sanity guard: Clamp to destination vicinity if wildly distant
             if (Math.abs(lat - destLat) > 0.75 || Math.abs(lng - destLng) > 0.75) {
                 lat = destLat + (0.01 + idx * 0.008) * Math.sin(idx * 1.2 + 0.4);
@@ -309,7 +659,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
 
-            // Anti-Overlap Guard: If another marker is at the same location, offset slightly so Stop 1 is NEVER hidden under Stop 2!
+            // Anti-Overlap Guard: If another marker is at virtually same pixel, offset slightly
             let collisions = 0;
             placedPositions.forEach(p => {
                 const dist = Math.hypot(p.lat - lat, p.lng - lng);
@@ -330,8 +680,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const sDay = stop.day || 1;
             dayCounters[sDay] = (dayCounters[sDay] || 0) + 1;
             const dayStopIndex = dayCounters[sDay];
-            
-            // Label numbering: Always 1, 2, 3... for single day; D1-1, D2-1... for all days
+
+            // Numbering: 1, 2, 3... for single day; D1-1, D2-1... for all days
             const labelNumber = state.activeDay === 'all' ? `D${sDay}-${dayStopIndex}` : String(idx + 1);
             const markerColor = getDayColor(sDay);
 
@@ -359,8 +709,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
 
                 marker.addListener('click', () => {
-                    displayPlaceDetails(stop);
-                    highlightActiveStop(stop.placeId || stop.placeName);
+                    focusPlaceOnMapAndDrawer(stop);
                 });
 
                 state.markers.push(marker);
@@ -374,8 +723,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
 
                 const marker = L.marker([lat, lng], { icon: customIcon }).addTo(state.leafletMap);
-                
-                const photoSnippet = stop.photos && stop.photos.length > 0 
+
+                const photoSnippet = stop.photos && stop.photos.length > 0
                     ? `<img src="${stop.photos[0]}" style="width:100%; height:80px; object-fit:cover; border-radius:4px; margin-top:6px;" alt="${stop.placeName}">`
                     : '';
 
@@ -389,49 +738,57 @@ document.addEventListener('DOMContentLoaded', async () => {
                 `);
 
                 marker.on('click', () => {
-                    displayPlaceDetails(stop);
-                    highlightActiveStop(stop.placeId || stop.placeName);
+                    focusPlaceOnMapAndDrawer(stop);
                 });
 
                 state.markers.push(marker);
             }
         });
 
-        // 5. Fit map bounds strictly to the active day's coordinates (preventing global zoom-out)
-        if (latLngList.length > 0) {
-            if (state.mapEngine === 'google' && state.googleMap) {
-                const bounds = new google.maps.LatLngBounds();
-                latLngList.forEach(pt => bounds.extend(new google.maps.LatLng(pt[0], pt[1])));
-                state.googleMap.fitBounds(bounds);
-            } else if (state.mapEngine === 'leaflet' && state.leafletMap) {
-                if (latLngList.length === 1) {
-                    state.leafletMap.setView(latLngList[0], 13);
-                } else {
-                    state.leafletMap.fitBounds(latLngList, { padding: [50, 50], maxZoom: 14 });
-                }
-            }
-        }
+        // 5. Fit Map Bounds
+        fitMapToBounds(filteredStops);
 
-        // 6. Draw realistic road route
+        // 6. Draw leg-by-leg Road Route
         if (elements.toggleRouteBtn?.classList.contains('active')) {
             drawRealRoadRoute(filteredStops);
         }
 
-        // 7. Auto preview the 1st stop of the active day
+        // 7. Auto preview the 1st stop
         if (filteredStops.length > 0) {
             displayPlaceDetails(filteredStops[0]);
-            highlightActiveStop(filteredStops[0].placeId || filteredStops[0].placeName);
+        }
+    }
+
+    function fitMapToBounds(stops) {
+        if (!stops || stops.length === 0) return;
+        const latLngList = stops.map(s => [
+            s.latitude || (s.coords && s.coords.lat),
+            s.longitude || (s.coords && s.coords.lng)
+        ]).filter(pt => pt[0] && pt[1]);
+
+        if (latLngList.length === 0) return;
+
+        if (state.mapEngine === 'google' && state.googleMap) {
+            const bounds = new google.maps.LatLngBounds();
+            latLngList.forEach(pt => bounds.extend(new google.maps.LatLng(pt[0], pt[1])));
+            state.googleMap.fitBounds(bounds);
+        } else if (state.mapEngine === 'leaflet' && state.leafletMap) {
+            if (latLngList.length === 1) {
+                state.leafletMap.setView(latLngList[0], 14);
+            } else {
+                state.leafletMap.fitBounds(latLngList, { padding: [50, 50], maxZoom: 14 });
+            }
         }
     }
 
     // =========================================================================
-    // 3. Real Road Routing (Google Directions & OSRM API) - Per-Day Segmented
+    // 6. Leg-by-Leg Resilient Road Routing
     // =========================================================================
     async function drawRealRoadRoute(stops) {
         clearRoute();
         if (!stops || stops.length < 2) return;
 
-        // Group stops by day so each day's stops are cleanly connected ONLY to each other!
+        // Group stops by day so each day's route connects ONLY within that day
         const dayGroups = {};
         stops.forEach(s => {
             const day = String(s.day || 1);
@@ -439,7 +796,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             dayGroups[day].push(s);
         });
 
-        // Draw segmented road routes for each day
         for (const [dayKey, dayStops] of Object.entries(dayGroups)) {
             if (dayStops.length < 2) continue;
 
@@ -451,21 +807,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (validCoords.length < 2) continue;
 
-            // Route using OSRM or Google Directions for this specific day
-            await routeSingleDay(validCoords, dayColor);
+            await routeSingleDayLegByLeg(validCoords, dayColor);
         }
     }
 
-    async function routeSingleDay(coordsList, color = '#0284c7') {
+    async function routeSingleDayLegByLeg(coordsList, color = '#0284c7') {
         if (!coordsList || coordsList.length < 2) return;
 
-        // Route leg-by-leg so that even if one spot is in a rural area, all places stay 100% interconnected!
         for (let i = 0; i < coordsList.length - 1; i++) {
             const start = coordsList[i];
             const end = coordsList[i + 1];
 
             try {
-                // Check distance guard (< 65km between consecutive stops)
+                // Distance guard (< 70km)
                 const distKm = Math.hypot(end.lat - start.lat, end.lng - start.lng) * 111;
                 if (distKm > 70) {
                     drawSimplePolyline([start, end], color);
@@ -506,7 +860,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (data.routes && data.routes.length > 0 && data.routes[0].distance < 80000 && state.leafletMap) {
                     const routeGeoJson = data.routes[0].geometry;
-                    // Leaflet GeoJSON expects [lat, lng], OSRM returns [lng, lat]
                     const legCoordinates = [
                         [start.lat, start.lng],
                         ...routeGeoJson.coordinates.map(c => [c[1], c[0]]),
@@ -558,10 +911,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             state.routeLayers = [];
         }
-        if (state.routeLayer && state.leafletMap) {
-            state.leafletMap.removeLayer(state.routeLayer);
-            state.routeLayer = null;
-        }
     }
 
     function clearAllMarkers() {
@@ -573,7 +922,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         state.markers = [];
     }
 
-    function panToCoordinates(lat, lng, zoom = 14) {
+    function panToCoordinates(lat, lng, zoom = 15) {
         ensureMapSize();
         if (state.mapEngine === 'google' && state.googleMap) {
             state.googleMap.panTo({ lat, lng });
@@ -589,30 +938,92 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // =========================================================================
-    // 4. Day Place Cards Rendering (Below Map)
+    // 7. Render Timeline Sequence (Left Column) & 2-Way Sync
     // =========================================================================
-    function renderDayPlaceCards(stops, activeDay) {
+    function renderTimelineSequence(stops, activeDay) {
+        if (!elements.timelineSequenceList) return;
+
+        if (!stops || stops.length === 0) {
+            elements.timelineSequenceList.innerHTML = `<div style="padding:1.5rem; text-align:center; color:var(--text-muted);">No locations planned for this day selection.</div>`;
+            return;
+        }
+
+        let html = '';
+        const dayCounters = {};
+
+        stops.forEach((stop, idx) => {
+            const sDay = stop.day || 1;
+            dayCounters[sDay] = (dayCounters[sDay] || 0) + 1;
+            const dayStopIndex = dayCounters[sDay];
+            const badgeNumber = activeDay === 'all' ? `D${sDay}-${dayStopIndex}` : String(idx + 1);
+            const badgeColor = getDayColor(sDay);
+
+            html += `
+                <div class="timeline-place-item" data-place-id="${stop.placeId || ''}" data-place-name="${stop.placeName}">
+                    <div class="place-item-top">
+                        <div class="place-step-badge" style="background:${badgeColor};">${badgeNumber}</div>
+                        <div class="place-item-content">
+                            <div class="place-item-header">
+                                <h4 class="place-item-title">${stop.placeName}</h4>
+                                <span class="place-time-tag">${stop.timeSlot || 'Day Stop'}</span>
+                            </div>
+                            <div class="place-item-address">${stop.formattedAddress || 'Destination landmark'}</div>
+                            <div class="place-item-activity">${stop.activity || stop.description || ''}</div>
+                            
+                            <div class="place-item-footer">
+                                <span class="place-rating-badge"><i class="fas fa-star"></i> ${stop.rating || '4.7'} (${stop.userRatingsTotal || 1200})</span>
+                                <div class="place-item-actions">
+                                    <button class="item-action-btn view-btn" data-action="view"><i class="fas fa-eye"></i> Details</button>
+                                    <button class="item-action-btn dir-btn" data-action="dir"><i class="fas fa-location-arrow"></i> Map</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Travel stats connector to next stop
+            if (stop.travelToNext && idx < stops.length - 1 && stops[idx + 1].day === stop.day) {
+                html += `
+                    <div class="inter-stop-travel-connector">
+                        <span class="travel-stat-pill">
+                            <i class="fas fa-car-side"></i> ${stop.travelToNext.formatted}
+                        </span>
+                    </div>
+                `;
+            }
+        });
+
+        elements.timelineSequenceList.innerHTML = html;
+
+        // Add 2-way click listeners
+        elements.timelineSequenceList.querySelectorAll('.timeline-place-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const pName = item.dataset.placeName;
+                const stopObj = stops.find(s => s.placeName === pName);
+                if (stopObj) {
+                    focusPlaceOnMapAndDrawer(stopObj);
+                }
+            });
+        });
+    }
+
+    function renderBottomCardsStrip(stops, activeDay) {
         if (!elements.dayPlaceCards) return;
 
         if (elements.dayCardsTitle) {
-            elements.dayCardsTitle.innerHTML = activeDay === 'all' 
-                ? `<i class="fas fa-globe"></i> All Planned Stops & Attractions` 
-                : `<i class="fas fa-location-arrow"></i> Day ${activeDay} Stops & Landmarks`;
+            elements.dayCardsTitle.innerHTML = activeDay === 'all'
+                ? `<i class="fas fa-globe"></i> All Planned Stops`
+                : `<i class="fas fa-location-arrow"></i> Day ${activeDay} Stops`;
         }
-
         if (elements.dayStopsCount) {
             elements.dayStopsCount.textContent = `${stops.length} Places`;
-        }
-
-        if (!stops || stops.length === 0) {
-            elements.dayPlaceCards.innerHTML = `<div style="padding:1rem; color:var(--text-muted); font-size:0.88rem;">No locations planned for this selection.</div>`;
-            return;
         }
 
         const cardCounters = {};
         elements.dayPlaceCards.innerHTML = stops.map((stop, idx) => {
             const hasPhoto = stop.photos && stop.photos.length > 0;
-            const thumbHtml = hasPhoto 
+            const thumbHtml = hasPhoto
                 ? `<img src="${stop.photos[0]}" class="day-place-card-thumb" alt="${stop.placeName}">`
                 : `<div class="day-place-card-no-thumb"><i class="fas fa-map-pin"></i></div>`;
 
@@ -621,571 +1032,265 @@ document.addEventListener('DOMContentLoaded', async () => {
             const badgeText = activeDay === 'all' ? `D${sDay}-${cardCounters[sDay]}` : String(idx + 1);
 
             return `
-                <div class="day-place-card" data-place-id="${stop.placeId || ''}" data-place-name="${stop.placeName}">
+                <div class="day-place-card" data-place-name="${stop.placeName}">
                     <div class="day-place-card-thumb-wrap">
                         ${thumbHtml}
                         <div class="day-place-card-badge" style="background:${getDayColor(stop.day)}">${badgeText}</div>
                     </div>
                     <div class="day-place-card-info">
                         <div class="day-place-card-title">${stop.placeName}</div>
-                        <div class="day-place-card-address">${stop.formattedAddress || stop.activity || 'Destination landmark'}</div>
+                        <div class="day-place-card-address">${stop.formattedAddress || stop.activity || ''}</div>
                         <div class="day-place-card-meta">
                             <span class="day-place-card-rating"><i class="fas fa-star"></i> ${stop.rating || '4.7'}</span>
-                            <span style="color:var(--text-muted); font-size:0.75rem;">• ${stop.category || 'Sightseeing'}</span>
                         </div>
                     </div>
-                    <button type="button" class="day-place-card-btn" data-place-name="${stop.placeName}">
-                        <i class="fas fa-map-pin"></i> View
-                    </button>
                 </div>
             `;
         }).join('');
 
-        // Card clicks
-        elements.dayPlaceCards.querySelectorAll('.day-place-card').forEach((card, idx) => {
+        elements.dayPlaceCards.querySelectorAll('.day-place-card').forEach(card => {
             card.addEventListener('click', () => {
-                const stop = stops[idx];
-                displayPlaceDetails(stop);
-                highlightActiveStop(stop.placeId || stop.placeName);
-                
-                const lat = stop.latitude || (stop.coords && stop.coords.lat);
-                const lng = stop.longitude || (stop.coords && stop.coords.lng);
-                if (lat && lng) {
-                    panToCoordinates(lat, lng, 15);
+                const pName = card.dataset.placeName;
+                const stopObj = stops.find(s => s.placeName === pName);
+                if (stopObj) {
+                    focusPlaceOnMapAndDrawer(stopObj);
                 }
             });
         });
     }
 
+    function focusPlaceOnMapAndDrawer(stop) {
+        state.activePlaceId = stop.placeId || stop.placeName;
+        state.activePlace = stop;
+
+        // Pan map and zoom
+        const lat = stop.latitude || (stop.coords && stop.coords.lat) || state.destinationCoords.lat;
+        const lng = stop.longitude || (stop.coords && stop.coords.lng) || state.destinationCoords.lng;
+        panToCoordinates(lat, lng, 15);
+
+        // Highlight card on left
+        document.querySelectorAll('.timeline-place-item, .day-place-card').forEach(el => {
+            el.classList.toggle('active', el.dataset.placeName === stop.placeName);
+        });
+
+        // Scroll timeline to card
+        const targetItem = document.querySelector(`.timeline-place-item[data-place-name="${stop.placeName}"]`);
+        if (targetItem) {
+            targetItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // Open Place Details Drawer
+        displayPlaceDetails(stop);
+    }
+
     // =========================================================================
-    // 5. Place Details & Photo Carousel (Exact Place Photos Only)
+    // 8. Place Details Drawer & Photo Carousel
     // =========================================================================
     function displayPlaceDetails(stop) {
+        state.activePlace = stop;
         if (!elements.placeDetailsCard) return;
 
-        state.activePlace = stop;
-        state.activePlaceId = stop.placeId;
-
-        elements.placeDetailsCard.classList.remove('hidden');
+        elements.placeCategory.innerHTML = `<i class="fas fa-map-pin"></i> ${stop.category || 'Sightseeing'}`;
         elements.placeName.textContent = stop.placeName;
-        elements.placeCategory.innerHTML = `<i class="fas fa-map-pin"></i> <span>${stop.category || 'Destination Landmark'}</span>`;
-        elements.placeActivity.textContent = stop.activity || stop.description || 'Recommended attraction from your itinerary.';
-        elements.placeAddress.textContent = stop.formattedAddress || `${stop.placeName}, ${state.destination}`;
-        elements.placeRating.innerHTML = `<i class="fas fa-star"></i> <strong>${stop.rating || '4.7'}</strong> (${(stop.userRatingsTotal || 1500).toLocaleString()})`;
+        elements.placeRating.innerHTML = `<i class="fas fa-star"></i> <strong>${stop.rating || '4.7'}</strong> (${stop.userRatingsTotal || 1200})`;
+        elements.placeDayTag.textContent = `Day ${stop.day || 1} • ${stop.timeSlot || 'Stop'}`;
+        elements.placeDayTag.style.background = getDayColor(stop.day);
+        elements.placeDayTag.style.color = '#ffffff';
 
-        if (stop.day) {
-            elements.placeDayTag.classList.remove('hidden');
-            elements.placeDayTag.innerHTML = `<i class="fas fa-calendar-day"></i> Day ${stop.day} Stop`;
+        elements.placeAddress.textContent = stop.formattedAddress || `${stop.placeName}, ${state.destination}`;
+        elements.placeActivity.textContent = stop.activity || stop.description || 'Curated itinerary highlight.';
+
+        if (stop.tips) {
+            elements.placeTips.textContent = stop.tips;
+            elements.placeTipsRow.classList.remove('hidden');
         } else {
-            elements.placeDayTag.classList.add('hidden');
+            elements.placeTipsRow.classList.add('hidden');
         }
 
-        // Photos handling: strictly use verified photos, else show clean No Photos state
-        const photos = stop.photos || [];
-        state.carouselPhotos = photos;
+        // Photos gallery setup
+        state.carouselPhotos = stop.photos || [];
         state.currentPhotoIndex = 0;
 
-        if (photos.length > 0) {
+        if (state.carouselPhotos.length > 0) {
             elements.carouselMainWrap.classList.remove('hidden');
-            elements.carouselThumbnails.classList.remove('hidden');
             elements.noPhotosFallback.classList.add('hidden');
-            updateCarouselPhoto();
-            renderCarouselThumbnails();
+            elements.carouselMainImg.src = state.carouselPhotos[0];
+            elements.carouselCounter.textContent = `1 / ${state.carouselPhotos.length}`;
+
+            // Render thumbnails
+            elements.carouselThumbnails.innerHTML = state.carouselPhotos.map((url, i) => `
+                <img src="${url}" class="drawer-thumb ${i === 0 ? 'active' : ''}" data-index="${i}" alt="thumb">
+            `).join('');
+
+            elements.carouselThumbnails.querySelectorAll('.drawer-thumb').forEach(thumb => {
+                thumb.addEventListener('click', () => {
+                    const idx = parseInt(thumb.dataset.index, 10);
+                    setCarouselPhoto(idx);
+                });
+            });
         } else {
-            // Clean state - no fake/generic photos from other destinations
             elements.carouselMainWrap.classList.add('hidden');
-            elements.carouselThumbnails.classList.add('hidden');
             elements.noPhotosFallback.classList.remove('hidden');
+            elements.carouselThumbnails.innerHTML = '';
         }
+
+        elements.placeDetailsCard.classList.remove('hidden');
     }
 
-    function updateCarouselPhoto() {
-        if (!elements.carouselMainImg || state.carouselPhotos.length === 0) return;
-        const currentUrl = state.carouselPhotos[state.currentPhotoIndex];
-        elements.carouselMainImg.src = currentUrl;
+    function setCarouselPhoto(index) {
+        if (state.carouselPhotos.length === 0) return;
+        state.currentPhotoIndex = (index + state.carouselPhotos.length) % state.carouselPhotos.length;
+        elements.carouselMainImg.src = state.carouselPhotos[state.currentPhotoIndex];
         elements.carouselCounter.textContent = `${state.currentPhotoIndex + 1} / ${state.carouselPhotos.length}`;
 
-        document.querySelectorAll('.carousel-thumb').forEach((thumb, idx) => {
-            thumb.classList.toggle('active', idx === state.currentPhotoIndex);
+        elements.carouselThumbnails.querySelectorAll('.drawer-thumb').forEach((thumb, i) => {
+            thumb.classList.toggle('active', i === state.currentPhotoIndex);
         });
     }
 
-    function renderCarouselThumbnails() {
-        if (!elements.carouselThumbnails) return;
-        elements.carouselThumbnails.innerHTML = state.carouselPhotos.map((url, idx) => `
-            <img src="${url}" class="carousel-thumb ${idx === 0 ? 'active' : ''}" data-index="${idx}" alt="Thumbnail ${idx + 1}">
-        `).join('');
-
-        elements.carouselThumbnails.querySelectorAll('.carousel-thumb').forEach(thumb => {
-            thumb.addEventListener('click', () => {
-                state.currentPhotoIndex = parseInt(thumb.dataset.index);
-                updateCarouselPhoto();
-            });
-        });
+    function changeCarouselPhoto(direction) {
+        setCarouselPhoto(state.currentPhotoIndex + direction);
     }
 
-    elements.carouselPrev?.addEventListener('click', () => {
-        if (state.carouselPhotos.length === 0) return;
-        state.currentPhotoIndex = (state.currentPhotoIndex - 1 + state.carouselPhotos.length) % state.carouselPhotos.length;
-        updateCarouselPhoto();
-    });
+    function openLightbox(imgUrl, caption) {
+        if (!elements.imageLightbox) return;
+        elements.lightboxImg.src = imgUrl;
+        elements.lightboxCaption.textContent = caption;
+        elements.imageLightbox.classList.remove('hidden');
+    }
 
-    elements.carouselNext?.addEventListener('click', () => {
-        if (state.carouselPhotos.length === 0) return;
-        state.currentPhotoIndex = (state.currentPhotoIndex + 1) % state.carouselPhotos.length;
-        updateCarouselPhoto();
-    });
-
-    elements.carouselZoom?.addEventListener('click', () => {
-        if (state.carouselPhotos.length > 0) {
-            elements.lightboxImg.src = state.carouselPhotos[state.currentPhotoIndex];
-            elements.lightboxCaption.textContent = elements.placeName.textContent;
-            elements.imageLightbox.classList.remove('hidden');
+    function closeLightbox() {
+        if (elements.imageLightbox) {
+            elements.imageLightbox.classList.add('hidden');
         }
-    });
-
-    elements.closeLightbox?.addEventListener('click', () => {
-        elements.imageLightbox.classList.add('hidden');
-    });
-
-    elements.closePlaceDetailsBtn?.addEventListener('click', () => {
-        elements.placeDetailsCard.classList.add('hidden');
-    });
-
-    elements.copyAddressBtn?.addEventListener('click', () => {
-        navigator.clipboard.writeText(elements.placeAddress.textContent);
-        const originalIcon = elements.copyAddressBtn.innerHTML;
-        elements.copyAddressBtn.innerHTML = '<i class="fas fa-check" style="color:#10b981;"></i>';
-        setTimeout(() => elements.copyAddressBtn.innerHTML = originalIcon, 2000);
-    });
-
-    elements.getDirectionsBtn?.addEventListener('click', () => {
-        const query = elements.placeName.textContent + ', ' + state.destination;
-        window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(query)}`, '_blank');
-    });
-
-    elements.askAiAboutPlaceBtn?.addEventListener('click', () => {
-        const place = elements.placeName.textContent;
-        openChatbot();
-        sendChatMessage(`Tell me more about ${place} in ${state.destination}. What are the best things to do, tips, and nearby spots?`);
-    });
-
-    function highlightActiveStop(identifier) {
-        // Highlight in Day Place Cards
-        document.querySelectorAll('.day-place-card').forEach(card => {
-            const match = card.dataset.placeId === identifier || card.dataset.placeName?.toLowerCase() === identifier?.toLowerCase();
-            card.classList.toggle('active', match);
-        });
-
-        // Highlight in Itinerary Place Chips
-        document.querySelectorAll('.itinerary-place-chip').forEach(chip => {
-            const match = chip.dataset.place?.toLowerCase() === identifier?.toLowerCase();
-            chip.classList.toggle('active', match);
-        });
     }
 
     // =========================================================================
-    // 6. Map Search
+    // 9. Markdown Itinerary Formatting & PDF Download
     // =========================================================================
-    elements.mapPlaceSearch?.addEventListener('input', () => {
-        elements.clearMapSearch?.classList.toggle('hidden', !elements.mapPlaceSearch.value);
-    });
+    function formatMarkdownItinerary(markdownText) {
+        if (!markdownText) return '<p>No itinerary guide available.</p>';
 
-    elements.clearMapSearch?.addEventListener('click', () => {
-        elements.mapPlaceSearch.value = '';
-        elements.clearMapSearch.classList.add('hidden');
-    });
+        let html = markdownText
+            .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+            .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+            .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+            .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+            .replace(/^\- (.*$)/gim, '<li>$1</li>')
+            .replace(/\n\n/gim, '</p><p>');
 
-    elements.mapPlaceSearch?.addEventListener('keypress', async (e) => {
-        if (e.key === 'Enter') {
-            const query = elements.mapPlaceSearch.value.trim();
-            if (!query) return;
-
-            try {
-                const res = await fetch(`/api/places/details?query=${encodeURIComponent(query)}&name=${encodeURIComponent(query)}&destination=${encodeURIComponent(state.destination)}`);
-                const details = await res.json();
-                
-                const lat = details.coords?.lat || (details.geometry?.location?.lat);
-                const lng = details.coords?.lng || (details.geometry?.location?.lng);
-                
-                if (lat && lng) {
-                    panToCoordinates(lat, lng, 15);
-                }
-
-                displayPlaceDetails(details);
-            } catch (err) {
-                console.error(err);
-            }
-        }
-    });
-
-    // =========================================================================
-    // 7. Itinerary Rendering & Interactive Badges
-    // =========================================================================
-    function formatAndDisplayItinerary(itineraryText, destination) {
-        const formattedHtml = formatItineraryWithInteractiveChips(itineraryText, destination);
-
-        elements.itineraryContent.innerHTML = `
-            <div class="itinerary-content">
-                ${formattedHtml}
-            </div>
-        `;
-
-        elements.explorerDestTitle.textContent = `Your Travel Itinerary: ${destination}`;
-        elements.tripExplorerSection.classList.remove('hidden');
-        ensureMapSize();
-        elements.tripExplorerSection.scrollIntoView({ behavior: 'smooth' });
-
-        // Bind Itinerary Place Chips
-        document.querySelectorAll('.itinerary-place-chip').forEach(chip => {
-            chip.addEventListener('click', async (e) => {
-                e.preventDefault();
-                const place = chip.dataset.place;
-
-                // Find matching stop in state.stops
-                let matchedStop = state.stops.find(s => s.placeName.toLowerCase().includes(place.toLowerCase()) || place.toLowerCase().includes(s.placeName.toLowerCase()));
-
-                if (matchedStop) {
-                    // Switch map to that stop's day
-                    if (String(matchedStop.day) !== state.activeDay && state.activeDay !== 'all') {
-                        selectDay(matchedStop.day);
-                    }
-                    displayPlaceDetails(matchedStop);
-                    highlightActiveStop(matchedStop.placeId || matchedStop.placeName);
-                    
-                    const lat = matchedStop.latitude || (matchedStop.coords && matchedStop.coords.lat);
-                    const lng = matchedStop.longitude || (matchedStop.coords && matchedStop.coords.lng);
-                    if (lat && lng) panToCoordinates(lat, lng, 15);
-                } else {
-                    // Fetch place details dynamically
-                    try {
-                        const res = await fetch(`/api/places/details?query=${encodeURIComponent(place)}&name=${encodeURIComponent(place)}&destination=${encodeURIComponent(destination)}`);
-                        const fetched = await res.json();
-                        displayPlaceDetails(fetched);
-                        highlightActiveStop(place);
-                        if (fetched.coords) panToCoordinates(fetched.coords.lat, fetched.coords.lng, 15);
-                    } catch (err) {
-                        console.error(err);
-                    }
-                }
-            });
-        });
-
-        // Bind Itinerary Day Headers to filter map
-        document.querySelectorAll('.itinerary-day-header-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const day = btn.dataset.day;
-                selectDay(day);
-                document.getElementById('trip-map-section').scrollIntoView({ behavior: 'smooth' });
-            });
-        });
+        html = html.replace(/(<li>.*<\/li>)/gims, '<ul>$1</ul>');
+        return `<p>${html}</p>`;
     }
 
-    function formatItineraryWithInteractiveChips(text, destination) {
-        let formatted = text
-            .replace(/### (.*?)\n/g, '<h4>$1</h4>')
-            .replace(/## (.*?)\n/g, '<h3>$1</h3>')
-            .replace(/# (.*?)\n/g, '<h2>$1</h2>')
-            .replace(/\*\*(.*?)\*\*/g, (match, p1) => {
-                const clean = p1.trim();
-                if (clean.length > 2 && !isGenericHeader(clean)) {
-                    return `<button type="button" class="itinerary-place-chip" data-place="${clean}" data-query="${clean}, ${destination}"><i class="fas fa-map-pin"></i> ${clean}</button>`;
-                }
-                return `<strong>${p1}</strong>`;
-            })
-            .replace(/\n\s*[-*]\s+(.*)/g, '<li>$1</li>')
-            .replace(/\n\s*\d+\.\s+(.*)/g, '<li>$1</li>');
-
-        const daySplits = formatted.split(/(?=Day \d+)/i);
-        if (daySplits.length > 1) {
-            return daySplits.map((dayBlock, idx) => {
-                if (!dayBlock.trim()) return '';
-                const headerMatch = dayBlock.match(/Day (\d+)[^<\n]*/i);
-                const dayNum = headerMatch ? headerMatch[1] : String(idx);
-                const title = headerMatch ? headerMatch[0] : `Day ${idx}`;
-                const body = dayBlock.replace(title, '');
-                return `
-                    <div class="itinerary-day" id="itinerary-day-${dayNum}">
-                        <div class="day-header">
-                            <h3><i class="fas fa-calendar-day"></i> ${title}</h3>
-                            <button type="button" class="itinerary-day-header-btn" data-day="${dayNum}" title="Show Day ${dayNum} on Map">
-                                <i class="fas fa-map-marked-alt"></i> Show Day ${dayNum} Map
-                            </button>
-                        </div>
-                        <div class="day-content">
-                            ${body}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        return `<div class="itinerary-day"><div class="day-content">${formatted}</div></div>`;
-    }
-
-    function isGenericHeader(text) {
-        const lower = text.toLowerCase();
-        return ['morning', 'afternoon', 'evening', 'night', 'daily tips', 'day ', 'transportation', 'weather', 'costs', 'breakfast', 'lunch', 'dinner', 'budget', 'pace'].some(k => lower.includes(k));
-    }
-
-    // =========================================================================
-    // 8. View Controls & UI Handlers
-    // =========================================================================
-    elements.viewToggleSplit?.addEventListener('click', () => setViewMode('split'));
-    elements.viewToggleItinerary?.addEventListener('click', () => setViewMode('itinerary'));
-    elements.viewToggleMap?.addEventListener('click', () => setViewMode('map'));
-
-    function setViewMode(mode) {
-        elements.viewToggleSplit.classList.toggle('active', mode === 'split');
-        elements.viewToggleItinerary.classList.toggle('active', mode === 'itinerary');
-        elements.viewToggleMap.classList.toggle('active', mode === 'map');
-
-        elements.tripGrid.classList.remove('view-itinerary-only', 'view-map-only');
-        if (mode === 'itinerary') elements.tripGrid.classList.add('view-itinerary-only');
-        if (mode === 'map') elements.tripGrid.classList.add('view-map-only');
-
-        ensureMapSize();
-    }
-
-    elements.fitMapBoundsBtn?.addEventListener('click', () => {
-        selectDay(state.activeDay);
-    });
-
-    elements.toggleRouteBtn?.addEventListener('click', () => {
-        elements.toggleRouteBtn.classList.toggle('active');
-        const isActive = elements.toggleRouteBtn.classList.contains('active');
-        if (!isActive) {
-            clearRoute();
-        } else {
-            selectDay(state.activeDay);
-        }
-    });
-
-    elements.quickChips.forEach(chip => {
-        chip.addEventListener('click', () => {
-            elements.destinationInput.value = chip.dataset.dest;
-            elements.preferencesForm.scrollIntoView({ behavior: 'smooth' });
-            elements.destinationInput.focus();
-        });
-    });
-
-    elements.startPlanningBtn?.addEventListener('click', () => {
-        elements.preferencesForm.scrollIntoView({ behavior: 'smooth' });
-    });
-
-    elements.planAnotherBtn?.addEventListener('click', () => {
-        elements.preferencesForm.scrollIntoView({ behavior: 'smooth' });
-        elements.destinationInput.focus();
-    });
-
-    elements.downloadPdfBtn?.addEventListener('click', async () => {
+    async function handleDownloadPdf() {
         try {
-            elements.downloadPdfBtn.disabled = true;
-            elements.downloadPdfBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating PDF...';
+            elements.downloadPdfBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing PDF...';
+            const itineraryHtml = elements.itineraryContent.innerHTML;
 
-            const response = await fetch('/download_pdf', {
+            const res = await fetch('/download_pdf', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content: elements.itineraryContent.innerHTML })
+                body: JSON.stringify({
+                    destination: state.destination,
+                    itinerary: itineraryHtml
+                })
             });
 
-            if (!response.ok) throw new Error('PDF Generation failed');
+            if (!res.ok) throw new Error('PDF export failed.');
 
-            const blob = await response.blob();
+            const blob = await res.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `Trip-Itinerary-${state.destination || 'TravelPlan'}.pdf`;
+            a.download = `${state.destination.replace(/[^a-zA-Z0-9]/g, '_')}_Itinerary.pdf`;
             document.body.appendChild(a);
             a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-
-            elements.downloadPdfBtn.innerHTML = '<i class="fas fa-file-pdf"></i> Download PDF';
-            elements.downloadPdfBtn.disabled = false;
+            a.remove();
         } catch (err) {
-            console.error('Error downloading PDF:', err);
-            elements.downloadPdfBtn.innerHTML = '<i class="fas fa-file-pdf"></i> Download PDF';
-            elements.downloadPdfBtn.disabled = false;
-            alert('Failed to generate PDF. Please try again.');
-        }
-    });
-
-    // =========================================================================
-    // 9. Form Submission (Generate AI Itinerary & Map)
-    // =========================================================================
-    elements.preferencesForm?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const formData = {
-            destination: elements.destinationInput.value.trim(),
-            startDate: elements.startDateInput.value,
-            endDate: elements.endDateInput.value,
-            duration: elements.durationInput.value,
-            interests: Array.from(document.querySelectorAll('input[name="interests"]:checked')).map(cb => cb.value),
-            budget: document.getElementById('budget').value,
-            pace: document.querySelector('input[name="pace"]:checked')?.value || 'balanced',
-            specialConsiderations: document.getElementById('specialConsiderations').value
-        };
-
-        if (!formData.destination) {
-            alert('Please enter a destination.');
-            return;
-        }
-
-        elements.submitButton.disabled = true;
-        elements.submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating Itinerary & Mapping Stops...';
-
-        try {
-            const res = await fetch('/generate_itinerary', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
-
-            const data = await res.json().catch(() => ({}));
-
-            if (!res.ok || data.error) {
-                throw new Error(data.error || 'Failed to generate itinerary. Please try again.');
-            }
-
-            // Display formatted itinerary & update interactive map
-            formatAndDisplayItinerary(data.itinerary, formData.destination);
-            updateMapWithStops(data.stops || [], formData.destination, data.destinationCoords);
-
-        } catch (error) {
-            console.error('Itinerary error:', error);
-            const errDiv = document.createElement('div');
-            errDiv.className = 'error-message';
-            errDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${error.message}`;
-            elements.preferencesForm.appendChild(errDiv);
-            setTimeout(() => errDiv.remove(), 7000);
+            alert('Failed to download PDF: ' + err.message);
         } finally {
-            elements.submitButton.disabled = false;
-            elements.submitButton.innerHTML = '<i class="fas fa-magic"></i> <span>Generate AI Itinerary & Map</span>';
+            elements.downloadPdfBtn.innerHTML = '<i class="fas fa-file-pdf"></i> PDF Guide';
         }
-    });
+    }
 
     // =========================================================================
-    // 10. AI Chatbot Assistant
+    // 10. AI Chatbot Assistant Integration
     // =========================================================================
-    elements.chatbotHeader?.addEventListener('click', toggleChatbot);
-    elements.navChatbotBtn?.addEventListener('click', openChatbot);
-
     function toggleChatbot() {
         state.isChatbotMinimized = !state.isChatbotMinimized;
         elements.chatbotContainer.classList.toggle('minimized', state.isChatbotMinimized);
-        elements.chatbotContent.classList.toggle('hidden', state.isChatbotMinimized);
+        elements.toggleChatbotBtn.innerHTML = state.isChatbotMinimized
+            ? '<i class="fas fa-chevron-up"></i>'
+            : '<i class="fas fa-chevron-down"></i>';
     }
 
-    function openChatbot() {
-        state.isChatbotMinimized = false;
-        elements.chatbotContainer.classList.remove('minimized');
-        elements.chatbotContent.classList.remove('hidden');
-        elements.userMessageInput.focus();
+    function openChatbotWithMessage(msg) {
+        if (state.isChatbotMinimized) toggleChatbot();
+        elements.userMessageInput.value = msg;
+        handleSendChatMessage();
     }
 
-    elements.sendMessageBtn?.addEventListener('click', () => sendChatMessage());
-    elements.userMessageInput?.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendChatMessage();
-    });
+    async function handleSendChatMessage() {
+        const msg = elements.userMessageInput.value.trim();
+        if (!msg) return;
 
-    elements.chatChips.forEach(chip => {
-        chip.addEventListener('click', () => {
-            const prompt = chip.dataset.prompt;
-            sendChatMessage(prompt);
-        });
-    });
+        // Append user bubble
+        appendChatBubble('user', msg);
+        elements.userMessageInput.value = '';
 
-    async function sendChatMessage(customText) {
-        const text = customText || elements.userMessageInput.value.trim();
-        if (!text) return;
-
-        if (!customText) elements.userMessageInput.value = '';
-
-        appendChatMessage('user', text);
-
-        const loadingId = 'loading-' + Date.now();
-        appendChatMessage('assistant', '<i class="fas fa-circle-notch fa-spin"></i> Thinking...', loadingId);
+        // Typing indicator
+        const loadingId = 'chat-loading-' + Date.now();
+        appendChatBubble('bot', '<i class="fas fa-circle-notch fa-spin"></i> Thinking...', loadingId);
 
         try {
             const res = await fetch('/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    message: text,
-                    destination: state.destination || elements.destinationInput.value
+                    message: msg,
+                    destination: state.destination
                 })
             });
 
             const data = await res.json();
-            const loadingBubble = document.getElementById(loadingId);
-            if (loadingBubble) loadingBubble.remove();
+            const reply = data.response || 'Sorry, I could not process your request.';
+            
+            // Format place tags: [place: Place Name] -> interactive clickable button
+            const formattedReply = reply.replace(/\[place:\s*(.*?)\]/gi, (match, pName) => {
+                return `<button class="chat-place-tag-btn" onclick="window.explorePlaceFromChat('${pName.replace(/'/g, "\\'")}')"><i class="fas fa-map-pin"></i> ${pName}</button>`;
+            });
 
-            if (data.error) {
-                appendChatMessage('assistant', `⚠️ ${data.error}`);
-            } else {
-                appendFormattedChatResponse(data.response);
-            }
+            removeChatBubble(loadingId);
+            appendChatBubble('bot', formattedReply);
         } catch (err) {
-            const loadingBubble = document.getElementById(loadingId);
-            if (loadingBubble) loadingBubble.remove();
-            appendChatMessage('assistant', '⚠️ Could not connect to travel assistant.');
+            removeChatBubble(loadingId);
+            appendChatBubble('bot', 'Sorry, an error occurred while connecting to the assistant.');
         }
     }
 
-    function appendChatMessage(sender, html, id = '') {
-        const msg = document.createElement('div');
-        msg.className = `chat-message ${sender}`;
-        if (id) msg.id = id;
-
-        const icon = sender === 'assistant' ? '<i class="fas fa-robot msg-icon"></i>' : '<i class="fas fa-user msg-icon"></i>';
-        msg.innerHTML = `${icon}<div class="msg-bubble">${html}</div>`;
-
-        elements.chatMessages.appendChild(msg);
+    function appendChatBubble(sender, text, customId = null) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${sender}-message`;
+        if (customId) msgDiv.id = customId;
+        msgDiv.innerHTML = `<div class="message-bubble">${text}</div>`;
+        elements.chatMessages.appendChild(msgDiv);
         elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
     }
 
-    function appendFormattedChatResponse(rawText) {
-        let formatted = rawText
-            .replace(/\[place:\s*([^\]]+)\]/gi, (match, placeName) => {
-                const clean = placeName.trim();
-                return `<strong>${clean}</strong> <button type="button" class="chat-place-btn" data-place="${clean}"><i class="fas fa-map-pin"></i> View on Map</button>`;
-            })
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\n\s*[-*]\s+(.*)/g, '<li>$1</li>')
-            .replace(/\n/g, '<br>');
-
-        appendChatMessage('assistant', formatted);
-
-        elements.chatMessages.querySelectorAll('.chat-place-btn').forEach(btn => {
-            btn.onclick = async () => {
-                const place = btn.dataset.place;
-                elements.tripExplorerSection.classList.remove('hidden');
-                document.getElementById('trip-map-section').scrollIntoView({ behavior: 'smooth' });
-
-                const matchedStop = state.stops.find(s => s.placeName.toLowerCase().includes(place.toLowerCase()));
-                if (matchedStop) {
-                    if (String(matchedStop.day) !== state.activeDay && state.activeDay !== 'all') {
-                        selectDay(matchedStop.day);
-                    }
-                    displayPlaceDetails(matchedStop);
-                    highlightActiveStop(matchedStop.placeId || matchedStop.placeName);
-                    const lat = matchedStop.latitude || (matchedStop.coords && matchedStop.coords.lat);
-                    const lng = matchedStop.longitude || (matchedStop.coords && matchedStop.coords.lng);
-                    if (lat && lng) panToCoordinates(lat, lng, 15);
-                } else {
-                    try {
-                        const res = await fetch(`/api/places/details?query=${encodeURIComponent(place)}&name=${encodeURIComponent(place)}&destination=${encodeURIComponent(state.destination)}`);
-                        const fetched = await res.json();
-                        displayPlaceDetails(fetched);
-                        highlightActiveStop(place);
-                        if (fetched.coords) panToCoordinates(fetched.coords.lat, fetched.coords.lng, 15);
-                    } catch (err) {
-                        console.error(err);
-                    }
-                }
-            };
-        });
+    function removeChatBubble(id) {
+        const el = document.getElementById(id);
+        if (el) el.remove();
     }
+
+    window.explorePlaceFromChat = function(placeName) {
+        const stop = state.stops.find(s => s.placeName.toLowerCase().includes(placeName.toLowerCase()));
+        if (stop) {
+            selectDay(String(stop.day));
+            setTimeout(() => focusPlaceOnMapAndDrawer(stop), 300);
+        } else {
+            panToCoordinates(state.destinationCoords.lat, state.destinationCoords.lng, 14);
+        }
+    };
 });

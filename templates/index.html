@@ -4,151 +4,160 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Trip Planner & Interactive Map Explorer</title>
+    <meta name="description" content="AI-powered travel itinerary generator with interactive Google Maps, authentic destination photos, day-by-day road routing, and AI chatbot.">
+    
+    <!-- Google Fonts & Font Awesome Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Leaflet fallback CSS if Google Maps key not active -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    
+    <!-- Leaflet CSS for Reliable Interactive Map View -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+    <!-- Custom Modern Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <!-- Top Navigation Bar -->
     <nav class="navbar">
         <div class="nav-container">
-            <div class="nav-brand">
+            <a href="/" class="nav-brand">
                 <i class="fas fa-route brand-icon"></i>
-                <span class="brand-name">AI Trip<strong>Planner</strong></span>
-                <span class="badge-maps"><i class="fas fa-map-marked-alt"></i> Maps & Places</span>
-            </div>
-            <div class="nav-links">
-                <a href="#preferences-form" class="nav-link"><i class="fas fa-compass"></i> Plan Trip</a>
-                <a href="#trip-map-section" class="nav-link" id="navMapLink"><i class="fas fa-map"></i> Trip Map</a>
-                <button id="navChatbotBtn" class="nav-btn"><i class="fas fa-robot"></i> AI Assistant</button>
+                <span class="brand-name">AI Trip<span class="brand-highlight">Planner</span></span>
+            </a>
+            <div class="nav-actions">
+                <button id="navChatbotBtn" class="nav-btn chatbot-nav-btn" title="Open AI Travel Assistant">
+                    <i class="fas fa-robot"></i>
+                    <span>AI Assistant</span>
+                </button>
             </div>
         </div>
     </nav>
 
     <!-- Hero Header -->
-    <header>
-        <div class="container hero-content">
-            <div class="hero-badge"><i class="fas fa-sparkles"></i> Powered by Gemini AI & Google Maps</div>
-            <h1>Discover & Plan Your Perfect Journey</h1>
-            <p>Generate personalized day-by-day itineraries with interactive Google Maps, high-resolution destination photos, and real-time AI guidance.</p>
-            
-            <div class="quick-destinations">
-                <span class="quick-title">Popular Destinations:</span>
-                <button type="button" class="quick-chip" data-dest="Manali, Himachal Pradesh"><i class="fas fa-mountain"></i> Manali</button>
-                <button type="button" class="quick-chip" data-dest="Goa, India"><i class="fas fa-umbrella-beach"></i> Goa</button>
-                <button type="button" class="quick-chip" data-dest="Jaipur, Rajasthan"><i class="fas fa-monument"></i> Jaipur</button>
-                <button type="button" class="quick-chip" data-dest="Kerala, India"><i class="fas fa-water"></i> Kerala</button>
-                <button type="button" class="quick-chip" data-dest="Paris, France"><i class="fas fa-landmark"></i> Paris</button>
-                <button type="button" class="quick-chip" data-dest="Tokyo, Japan"><i class="fas fa-city"></i> Tokyo</button>
-            </div>
-
-            <button id="startPlanning" class="cta-button">
-                <span>Start Planning Now</span>
-                <i class="fas fa-arrow-down"></i>
-            </button>
+    <header class="hero-section">
+        <div class="hero-content">
+            <span class="hero-badge"><i class="fas fa-sparkles"></i> Next-Gen AI Travel Intelligence</span>
+            <h1>Design Your Dream Journey with <span class="gradient-text">Interactive Maps</span></h1>
+            <p class="hero-subtitle">Generate custom day-by-day itineraries, explore verified place photos, track real road routes, and get instant answers from your AI travel assistant.</p>
         </div>
     </header>
 
-    <main>
+    <main class="main-container">
         <!-- Preferences Form Section -->
-        <section id="preferences-form" class="container section-card">
+        <section id="preferences-form" class="section-card">
             <div class="section-header">
                 <div class="section-icon"><i class="fas fa-sliders-h"></i></div>
                 <div>
-                    <h2>Trip Preferences & Customization</h2>
-                    <p class="section-desc">Tell our AI where you want to go and what you love to do.</p>
+                    <h2>Trip Preferences & Itinerary Builder</h2>
+                    <p class="section-desc">Enter your destination and preferences below to create your personalized journey.</p>
                 </div>
             </div>
 
             <form id="itineraryForm">
-                <div class="form-group">
-                    <label for="destination"><i class="fas fa-map-marker-alt"></i> Destination</label>
-                    <div class="input-with-icon">
-                        <input type="text" id="destination" name="destination" placeholder="e.g. Manali, Goa, Tokyo, Rome" required autocomplete="off">
-                        <i class="fas fa-search input-icon"></i>
+                <!-- Destination & Starting Point -->
+                <div class="form-row destination-row">
+                    <div class="form-group flex-2">
+                        <label for="destination"><i class="fas fa-map-marker-alt"></i> Destination <span class="required-star">*</span></label>
+                        <div class="input-with-icon">
+                            <input type="text" id="destination" name="destination" placeholder="Where do you want to go? (e.g. Manali, Goa, Paris, Tokyo)" required autocomplete="off">
+                            <i class="fas fa-search input-icon"></i>
+                        </div>
+                    </div>
+
+                    <div class="form-group flex-2">
+                        <label for="startingPoint"><i class="fas fa-hotel"></i> Starting Point / Hotel / Airport <span class="optional-tag">(Optional)</span></label>
+                        <div class="input-with-actions">
+                            <input type="text" id="startingPoint" name="startingPoint" placeholder="e.g. Hotel, Airport, City Center" autocomplete="off">
+                            <button type="button" id="useCurrentLocationBtn" class="input-action-btn" title="Use current geolocation">
+                                <i class="fas fa-crosshairs"></i> <span>Near Me</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <div class="form-row">
+                <!-- Dates & Duration -->
+                <div class="form-row dates-row">
                     <div class="form-group">
                         <label for="startDate"><i class="fas fa-calendar-alt"></i> Start Date</label>
-                        <input type="date" id="startDate" name="startDate" required>
+                        <input type="date" id="startDate" name="startDate">
                     </div>
                     <div class="form-group">
                         <label for="endDate"><i class="fas fa-calendar-check"></i> End Date</label>
-                        <input type="date" id="endDate" name="endDate" required>
+                        <input type="date" id="endDate" name="endDate">
+                    </div>
+                    <div class="form-group">
+                        <label for="duration"><i class="fas fa-clock"></i> Duration (Days)</label>
+                        <input type="number" id="duration" name="duration" min="1" max="14" placeholder="e.g. 3" required>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="duration"><i class="fas fa-clock"></i> Duration (days)</label>
-                    <input type="number" id="duration" name="duration" min="1" max="14" value="3" required>
-                </div>
-
+                <!-- Travel Interests & Vibes -->
                 <div class="form-group">
                     <label><i class="fas fa-heart"></i> Travel Interests & Vibes</label>
                     <div class="interests-grid">
                         <label class="checkbox-label">
-                            <input type="checkbox" name="interests" value="nature" checked> 
+                            <input type="checkbox" name="interests" value="Nature & Scenery" checked> 
                             <span><i class="fas fa-tree"></i> Nature & Scenery</span>
                         </label>
                         <label class="checkbox-label">
-                            <input type="checkbox" name="interests" value="food" checked> 
+                            <input type="checkbox" name="interests" value="Local Food & Cafes" checked> 
                             <span><i class="fas fa-utensils"></i> Local Food & Cafes</span>
                         </label>
                         <label class="checkbox-label">
-                            <input type="checkbox" name="interests" value="history"> 
+                            <input type="checkbox" name="interests" value="History & Heritage"> 
                             <span><i class="fas fa-landmark"></i> History & Heritage</span>
                         </label>
                         <label class="checkbox-label">
-                            <input type="checkbox" name="interests" value="nightlife"> 
+                            <input type="checkbox" name="interests" value="Nightlife & Social"> 
                             <span><i class="fas fa-glass-cheers"></i> Nightlife & Social</span>
                         </label>
                         <label class="checkbox-label">
-                            <input type="checkbox" name="interests" value="culture"> 
+                            <input type="checkbox" name="interests" value="Culture & Arts"> 
                             <span><i class="fas fa-palette"></i> Culture & Arts</span>
                         </label>
                         <label class="checkbox-label">
-                            <input type="checkbox" name="interests" value="adventure"> 
+                            <input type="checkbox" name="interests" value="Adventure & Sports"> 
                             <span><i class="fas fa-hiking"></i> Adventure & Sports</span>
                         </label>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="budget"><i class="fas fa-wallet"></i> Budget Range</label>
-                    <select id="budget" name="budget" required>
-                        <option value="low">Budget-Friendly (Affordable stays & local eats)</option>
-                        <option value="medium" selected>Moderate / Balanced (Comfortable & versatile)</option>
-                        <option value="high">Luxury / Premium (High-end resorts & fine dining)</option>
-                    </select>
-                </div>
+                <!-- Budget & Pace -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="budget"><i class="fas fa-wallet"></i> Budget Range</label>
+                        <select id="budget" name="budget" required>
+                            <option value="Budget-Friendly (Affordable stays & local eats)">Budget-Friendly (Affordable stays & local eats)</option>
+                            <option value="Moderate / Balanced (Comfortable & versatile)" selected>Moderate / Balanced (Comfortable & versatile)</option>
+                            <option value="Luxury / Premium (High-end resorts & fine dining)">Luxury / Premium (High-end resorts & fine dining)</option>
+                        </select>
+                    </div>
 
-                <div class="form-group">
-                    <label><i class="fas fa-tachometer-alt"></i> Preferred Pace</label>
-                    <div class="radio-group">
-                        <label class="radio-label">
-                            <input type="radio" name="pace" value="relaxed"> 
-                            <span><i class="fas fa-coffee"></i> Relaxed (Leisurely)</span>
-                        </label>
-                        <label class="radio-label">
-                            <input type="radio" name="pace" value="balanced" checked> 
-                            <span><i class="fas fa-balance-scale"></i> Balanced (Best of both)</span>
-                        </label>
-                        <label class="radio-label">
-                            <input type="radio" name="pace" value="packed"> 
-                            <span><i class="fas fa-running"></i> Packed (See everything)</span>
-                        </label>
+                    <div class="form-group">
+                        <label><i class="fas fa-tachometer-alt"></i> Preferred Pace</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="pace" value="Relaxed (Leisurely)"> 
+                                <span><i class="fas fa-coffee"></i> Relaxed</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="pace" value="Balanced (Best of both)" checked> 
+                                <span><i class="fas fa-balance-scale"></i> Balanced</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="pace" value="Packed (See everything)"> 
+                                <span><i class="fas fa-running"></i> Packed</span>
+                            </label>
+                        </div>
                     </div>
                 </div>
 
+                <!-- Special Considerations -->
                 <div class="form-group">
                     <label for="specialConsiderations"><i class="fas fa-info-circle"></i> Special Considerations / Notes</label>
-                    <textarea id="specialConsiderations" name="specialConsiderations" rows="3" placeholder="e.g. Vegetarian food options, travelling with family/kids, preference for scenic viewpoints, pet friendly..."></textarea>
+                    <textarea id="specialConsiderations" name="specialConsiderations" rows="2" placeholder="e.g. Vegetarian food options, travelling with family/kids, preference for scenic viewpoints, pet friendly..."></textarea>
                 </div>
 
                 <button type="submit" class="submit-button" id="generateBtn">
@@ -156,193 +165,241 @@
                     <span>Generate AI Itinerary & Map</span>
                 </button>
             </form>
+
+            <div id="formErrorMessage" class="error-message hidden"></div>
         </section>
 
-        <!-- Main Trip Explorer (Itinerary + Google Map Split View) -->
-        <section id="trip-explorer-section" class="container hidden">
-            <!-- Explorer Top Bar -->
-            <div class="explorer-header-bar">
-                <div class="explorer-title-wrap">
-                    <h2 id="explorer-destination-title">Your Travel Itinerary & Map</h2>
-                    <p id="explorer-subtitle">Explore day-by-day stops on the interactive map or click any place to preview photos and details.</p>
+        <!-- Advanced 2-Column Trip Explorer Workspace -->
+        <section id="trip-explorer-section" class="trip-workspace-section hidden">
+            <!-- Explorer Top Navigation Bar -->
+            <div class="workspace-header-bar">
+                <div class="workspace-title-wrap">
+                    <div class="workspace-badge"><i class="fas fa-map-location-dot"></i> Interactive Trip Map & Plan</div>
+                    <h2 id="explorer-destination-title">Your Travel Itinerary</h2>
+                    <p id="explorer-subtitle" class="workspace-subtitle">Explore sequential stops, verified photographs, and road directions.</p>
                 </div>
-                <div class="explorer-actions">
-                    <button id="viewToggleSplit" class="view-toggle-btn active" title="Split View"><i class="fas fa-columns"></i> Split</button>
-                    <button id="viewToggleItinerary" class="view-toggle-btn" title="Itinerary View"><i class="fas fa-list-alt"></i> Itinerary</button>
-                    <button id="viewToggleMap" class="view-toggle-btn" title="Map View"><i class="fas fa-map"></i> Map</button>
-                    <button id="downloadPdf" class="action-button primary"><i class="fas fa-file-pdf"></i> Download PDF</button>
-                    <button id="planAnother" class="action-button secondary"><i class="fas fa-sync-alt"></i> New Trip</button>
+                <div class="workspace-actions">
+                    <button id="downloadPdf" class="action-btn primary"><i class="fas fa-file-pdf"></i> PDF Guide</button>
+                    <button id="planAnother" class="action-btn secondary"><i class="fas fa-plus"></i> New Trip</button>
                 </div>
             </div>
 
-            <!-- Split Grid Layout -->
-            <div class="trip-grid-container" id="tripGrid">
-                <!-- Left: Itinerary Plan -->
-                <div class="itinerary-column" id="itineraryColumn">
-                    <div id="itinerary-display">
-                        <div id="itinerary-content"></div>
+            <!-- 2-Column Split Workspace -->
+            <div class="trip-workspace-grid" id="tripGrid">
+                
+                <!-- Left Column: Itinerary Timeline & Place Sequence -->
+                <div class="itinerary-sidebar-column" id="itinerarySidebarColumn">
+                    
+                    <!-- Trip Overview Card -->
+                    <div class="trip-overview-card" id="tripOverviewCard">
+                        <div class="overview-header">
+                            <span class="overview-vibe" id="tripVibeTag"><i class="fas fa-sparkles"></i> Scenic & Cultural</span>
+                            <span class="overview-duration" id="tripDurationTag"><i class="fas fa-calendar"></i> 3 Days</span>
+                        </div>
+                        <p class="overview-summary" id="tripSummaryText">Curated travel plan with verified landmarks, scenic drives, and local cuisine.</p>
+                        <div class="overview-meta" id="tripMetaTags">
+                            <span id="tripBestSeason"><i class="fas fa-sun"></i> Best Season: Oct - Mar</span>
+                        </div>
+                    </div>
+
+                    <!-- View Mode Switcher -->
+                    <div class="workspace-tab-switcher">
+                        <button id="tabBtnSequence" class="workspace-tab active" data-tab="sequence">
+                            <i class="fas fa-list-ol"></i> Place Sequence & Timeline
+                        </button>
+                        <button id="tabBtnGuide" class="workspace-tab" data-tab="guide">
+                            <i class="fas fa-book-open"></i> Full Itinerary Guide
+                        </button>
+                    </div>
+
+                    <!-- Tab 1: Chronological Place Sequence & Timeline -->
+                    <div id="sequenceTabView" class="tab-pane active">
+                        
+                        <!-- Day Filter Chips on Sequence List -->
+                        <div class="day-filter-container">
+                            <div class="day-filter-scroll" id="sidebarDayFilters">
+                                <!-- Dynamic Day Pills will be injected here -->
+                            </div>
+                        </div>
+
+                        <!-- Sequential Place Cards Container -->
+                        <div class="timeline-sequence-list" id="timelineSequenceList">
+                            <!-- Injected dynamically by script.js -->
+                        </div>
+
+                        <!-- Docked Selected Place Details Drawer -->
+                        <div id="place-details-card" class="place-details-drawer hidden">
+                            <div class="drawer-header">
+                                <div class="drawer-title-wrap">
+                                    <span class="category-pill" id="placeCategory"><i class="fas fa-map-pin"></i> Sightseeing</span>
+                                    <h3 id="placeName">Landmark Name</h3>
+                                    <div class="drawer-meta-row">
+                                        <span class="rating-badge" id="placeRating"><i class="fas fa-star"></i> 4.8</span>
+                                        <span class="day-badge" id="placeDayTag">Day 1</span>
+                                    </div>
+                                </div>
+                                <button id="closePlaceDetails" class="drawer-close-btn" title="Close details"><i class="fas fa-times"></i></button>
+                            </div>
+
+                            <!-- Carousel Gallery -->
+                            <div class="drawer-gallery" id="placeCarousel">
+                                <div class="drawer-main-img-wrap" id="carouselMainWrap">
+                                    <img id="carouselMainImg" src="" alt="Place photo" class="drawer-main-img">
+                                    <button class="carousel-nav-btn prev" id="carouselPrev" title="Previous"><i class="fas fa-chevron-left"></i></button>
+                                    <button class="carousel-nav-btn next" id="carouselNext" title="Next"><i class="fas fa-chevron-right"></i></button>
+                                    <button class="carousel-zoom-btn" id="carouselZoom" title="Zoom photo"><i class="fas fa-expand"></i></button>
+                                    <div class="carousel-counter" id="carouselCounter">1 / 1</div>
+                                </div>
+                                <div id="noPhotosFallback" class="no-photos-card hidden">
+                                    <i class="fas fa-camera"></i>
+                                    <span>Verified local landmark • Photo preview unavailable</span>
+                                </div>
+                                <div class="drawer-thumbnails" id="carouselThumbnails"></div>
+                            </div>
+
+                            <!-- Place Info & Description -->
+                            <div class="drawer-body">
+                                <div class="drawer-info-item" id="placeAddressRow">
+                                    <i class="fas fa-location-dot"></i>
+                                    <span id="placeAddress">Address loading...</span>
+                                    <button id="copyAddressBtn" class="copy-btn" title="Copy address"><i class="fas fa-copy"></i></button>
+                                </div>
+                                <div class="drawer-info-item" id="placeActivityRow">
+                                    <i class="fas fa-compass"></i>
+                                    <span id="placeActivity">Recommended highlight from your itinerary.</span>
+                                </div>
+                                <div class="drawer-info-item tips-item" id="placeTipsRow">
+                                    <i class="fas fa-lightbulb"></i>
+                                    <span id="placeTips">Travel tip for this spot.</span>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="drawer-actions">
+                                    <button id="getDirectionsBtn" class="drawer-btn primary">
+                                        <i class="fas fa-diamond-turn-right"></i> Get Directions
+                                    </button>
+                                    <button id="askAiAboutPlaceBtn" class="drawer-btn secondary">
+                                        <i class="fas fa-comment-dots"></i> Ask AI
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Tab 2: Full Markdown Itinerary Guide -->
+                    <div id="guideTabView" class="tab-pane hidden">
+                        <div class="guide-content-wrapper">
+                            <div id="itinerary-content" class="markdown-guide-body"></div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Right Column: Sticky Interactive Map Viewport -->
+                <div class="map-viewport-column" id="mapViewportColumn">
+                    <div class="sticky-map-wrapper">
+                        
+                        <!-- Map Header Toolbar -->
+                        <div class="map-header-toolbar">
+                            <!-- Day Filter Tabs on Map -->
+                            <div class="map-day-pills" id="mapDayFilters">
+                                <!-- Dynamic Day Pills -->
+                            </div>
+
+                            <!-- Map Tool Controls -->
+                            <div class="map-toolbar-actions">
+                                <button id="toggleRouteBtn" class="map-tool-btn active" title="Toggle Road Routes">
+                                    <i class="fas fa-route"></i> <span>Route</span>
+                                </button>
+                                <button id="fitMapBoundsBtn" class="map-tool-btn" title="Fit All Locations">
+                                    <i class="fas fa-expand"></i> <span>Fit All</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Map Canvas Container -->
+                        <div class="map-canvas-container">
+                            <div id="trip-map" class="interactive-map-canvas"></div>
+                            
+                            <!-- Animated Loading Overlay -->
+                            <div id="map-loading-indicator" class="map-loading-overlay hidden">
+                                <div class="loading-spinner-box">
+                                    <i class="fas fa-circle-notch fa-spin loading-icon"></i>
+                                    <span id="mapLoadingText" class="loading-text">Resolving places & road routes...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Map Quick Place Cards Strip (Below Map) -->
+                        <div id="day-place-cards-section" class="map-bottom-cards-section">
+                            <div class="bottom-cards-header">
+                                <h4 id="dayCardsTitle"><i class="fas fa-location-arrow"></i> Day 1 Stops & Landmarks</h4>
+                                <span class="badge" id="dayStopsCount">0 Places</span>
+                            </div>
+                            <div id="day-place-cards" class="bottom-cards-scroll-strip"></div>
+                        </div>
+
                     </div>
                 </div>
 
-                <!-- Right: Interactive Google Map & Place Details -->
-                <div class="map-column" id="mapColumn">
-                    <!-- Map Card -->
-                    <div class="map-card-wrapper" id="trip-map-section">
-                        <div class="map-toolbar">
-                            <!-- Place Search on Map -->
-                            <div class="map-search-bar">
-                                <i class="fas fa-search map-search-icon"></i>
-                                <input type="text" id="mapPlaceSearch" placeholder="Search places, hotels, cafes on map..." autocomplete="off">
-                                <button id="clearMapSearch" class="clear-search-btn hidden" title="Clear search"><i class="fas fa-times"></i></button>
-                            </div>
-
-                            <!-- Day Filter Tabs -->
-                            <div class="map-day-filters" id="mapDayFilters">
-                                <button class="day-filter-chip active" data-day="all"><i class="fas fa-globe"></i> All Days</button>
-                                <!-- Dynamic day chips inserted here -->
-                            </div>
-
-                            <!-- Map Utilities -->
-                            <div class="map-utils">
-                                <button id="toggleRouteBtn" class="map-tool-btn active" title="Toggle Stop Routes"><i class="fas fa-route"></i> Route</button>
-                                <button id="fitMapBoundsBtn" class="map-tool-btn" title="Fit All Pins"><i class="fas fa-expand"></i> Fit All</button>
-                            </div>
-                        </div>
-
-                        <!-- Map Container -->
-                        <div class="map-viewport-container">
-                            <div id="trip-map" class="map-view"></div>
-                            <div id="map-loading-indicator" class="map-overlay-loading hidden">
-                                <i class="fas fa-circle-notch fa-spin"></i>
-                                <span>Loading map stops...</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Day Place Cards Grid (Stops of Selected Day) -->
-                    <div id="day-place-cards-section" class="day-place-cards-section">
-                        <div class="day-cards-header">
-                            <h4 id="dayCardsTitle"><i class="fas fa-location-arrow"></i> Day 1 Stops & Landmarks</h4>
-                            <span class="day-stops-count" id="dayStopsCount">3 Places</span>
-                        </div>
-                        <div id="day-place-cards" class="day-place-cards-grid"></div>
-                    </div>
-
-                    <!-- Place Details & Photo Carousel Panel -->
-                    <div id="place-details-card" class="place-details-card hidden">
-                        <div class="place-card-header">
-                            <div class="place-title-wrap">
-                                <div class="place-category-badge" id="placeCategory">
-                                    <i class="fas fa-map-pin"></i> <span>Tourist Attraction</span>
-                                </div>
-                                <h3 id="placeName">Destination Name</h3>
-                                <div class="place-meta-pills">
-                                    <span class="pill rating-pill" id="placeRating"><i class="fas fa-star"></i> <strong>4.8</strong> (1,240)</span>
-                                    <span class="pill open-pill" id="placeOpenStatus"><i class="fas fa-clock"></i> Open Now</span>
-                                    <span class="pill day-pill hidden" id="placeDayTag"><i class="fas fa-calendar-day"></i> Day 1 Stop</span>
-                                </div>
-                            </div>
-                            <button id="closePlaceDetails" class="close-card-btn" title="Close details"><i class="fas fa-times"></i></button>
-                        </div>
-
-                        <!-- Photo Gallery Carousel -->
-                        <div class="place-carousel-container" id="placeCarousel">
-                            <div class="carousel-main-image-wrap" id="carouselMainWrap">
-                                <img id="carouselMainImg" src="" alt="Place photo" class="carousel-main-img">
-                                <button class="carousel-nav-btn prev" id="carouselPrev" title="Previous photo"><i class="fas fa-chevron-left"></i></button>
-                                <button class="carousel-nav-btn next" id="carouselNext" title="Next photo"><i class="fas fa-chevron-right"></i></button>
-                                <button class="carousel-zoom-btn" id="carouselZoom" title="View Full Photo"><i class="fas fa-expand"></i></button>
-                                <div class="carousel-counter" id="carouselCounter">1 / 4</div>
-                            </div>
-                            <!-- No Photos Fallback State -->
-                            <div id="noPhotosFallback" class="no-photos-card hidden">
-                                <i class="fas fa-camera-slash"></i>
-                                <span>No verified photos available for this location</span>
-                            </div>
-                            <!-- Thumbnail Strip -->
-                            <div class="carousel-thumbnails" id="carouselThumbnails"></div>
-                        </div>
-
-                        <!-- Place Body Info -->
-                        <div class="place-card-body">
-                            <div class="place-info-row" id="placeAddressRow">
-                                <i class="fas fa-location-dot"></i>
-                                <span id="placeAddress">Address information loading...</span>
-                                <button id="copyAddressBtn" class="copy-btn" title="Copy address"><i class="fas fa-copy"></i></button>
-                            </div>
-
-                            <div class="place-info-row" id="placeActivityRow">
-                                <i class="fas fa-info-circle"></i>
-                                <span id="placeActivity">Recommended highlight from your itinerary.</span>
-                            </div>
-
-                            <div class="place-card-actions">
-                                <button id="getDirectionsBtn" class="place-action-btn primary">
-                                    <i class="fas fa-directions"></i> Get Directions
-                                </button>
-                                <button id="askAiAboutPlaceBtn" class="place-action-btn secondary">
-                                    <i class="fas fa-comment-dots"></i> Ask AI Assistant
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </section>
-
-        <!-- Fullscreen Image Lightbox Modal -->
-        <div id="imageLightbox" class="lightbox-modal hidden">
-            <div class="lightbox-backdrop"></div>
-            <div class="lightbox-content">
-                <img id="lightboxImg" src="" alt="Full view">
-                <button id="closeLightbox" class="lightbox-close"><i class="fas fa-times"></i></button>
-                <div id="lightboxCaption" class="lightbox-caption"></div>
-            </div>
-        </div>
-
-        <!-- Floating AI Chatbot Assistant -->
-        <div id="chatbot-container" class="minimized">
-            <div id="chatbot-header">
-                <div class="chatbot-header-info">
-                    <div class="chatbot-avatar"><i class="fas fa-robot"></i></div>
-                    <div>
-                        <h3>AI Travel Assistant</h3>
-                        <span class="chatbot-status"><span class="status-dot"></span> Online & Ready</span>
-                    </div>
-                </div>
-                <div class="chatbot-header-actions">
-                    <button id="toggleChatbot" title="Minimize / Expand Chatbot">
-                        <i class="fas fa-chevron-down"></i>
-                    </button>
-                </div>
-            </div>
-
-            <div id="chatbot-content" class="hidden">
-                <div class="chat-quick-suggestions">
-                    <button class="chat-chip" data-prompt="What are the top local food spots to try?">🍜 Top Foods</button>
-                    <button class="chat-chip" data-prompt="What should I pack for this trip?">🎒 Packing Tips</button>
-                    <button class="chat-chip" data-prompt="What is the best way to get around?">🚕 Transport Advice</button>
-                </div>
-                <div id="chat-messages">
-                    <div class="chat-message assistant">
-                        <i class="fas fa-robot msg-icon"></i>
-                        <div class="msg-bubble">
-                            Hi there! I'm your AI Travel Assistant. Ask me anything about your destination, weather, packing tips, or local hidden gems! When I mention places, click the <strong>📍 View on Map</strong> button to explore them in real-time.
-                        </div>
-                    </div>
-                </div>
-                <div class="chat-input-area">
-                    <input type="text" id="user-message" placeholder="Ask about places, local dishes, tips..." autocomplete="off">
-                    <button id="send-message" title="Send message">
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
     </main>
 
-    <!-- Leaflet Fallback JS (if Google Maps key is not configured) -->
+    <!-- Photo Lightbox Modal -->
+    <div id="imageLightbox" class="lightbox-modal hidden">
+        <div class="lightbox-backdrop"></div>
+        <div class="lightbox-container">
+            <button id="closeLightbox" class="lightbox-close-btn" title="Close"><i class="fas fa-times"></i></button>
+            <img id="lightboxImg" src="" alt="Full view photo" class="lightbox-image">
+            <div id="lightboxCaption" class="lightbox-caption"></div>
+        </div>
+    </div>
+
+    <!-- Floating AI Chatbot Assistant -->
+    <div id="chatbot-container" class="minimized">
+        <div id="chatbot-header">
+            <div class="chatbot-header-info">
+                <div class="chatbot-avatar"><i class="fas fa-robot"></i></div>
+                <div>
+                    <h3>AI Travel Assistant</h3>
+                    <span class="chatbot-status"><i class="fas fa-circle status-dot"></i> Online & Ready</span>
+                </div>
+            </div>
+            <button id="toggleChatbot" class="chatbot-toggle-btn" title="Toggle chat"><i class="fas fa-chevron-up"></i></button>
+        </div>
+
+        <div id="chatbot-content">
+            <!-- Quick Suggestion Chips -->
+            <div class="chat-quick-suggestions">
+                <button class="chat-chip" data-msg="What are top local foods to try here?">🍲 Local Food</button>
+                <button class="chat-chip" data-msg="What is the best way to get around?">🚕 Transport</button>
+                <button class="chat-chip" data-msg="What should I pack for this trip?">🎒 Packing Tips</button>
+                <button class="chat-chip" data-msg="Any hidden gems nearby?">💎 Hidden Gems</button>
+            </div>
+
+            <!-- Chat Messages Scroll -->
+            <div id="chat-messages" class="chat-messages-container">
+                <div class="message bot-message">
+                    <div class="message-bubble">
+                        👋 Hi! I'm your AI Travel Concierge. Feel free to ask me anything about your destination, hidden gems, local cafes, or navigation!
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Input Bar -->
+            <div class="chat-input-area">
+                <input type="text" id="user-message" placeholder="Ask about places, food, transport..." autocomplete="off">
+                <button id="send-message" title="Send message"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet Map JS Library -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <!-- Application Logic -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
-</html> 
+</html>
