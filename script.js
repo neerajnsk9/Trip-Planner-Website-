@@ -201,6 +201,33 @@ document.addEventListener('DOMContentLoaded', async () => {
             elements.tabBtnGuide.addEventListener('click', () => switchWorkspaceTab('guide'));
         }
 
+        // Start Planning Hero CTA button
+        const startPlanningBtn = document.getElementById('startPlanning');
+        if (startPlanningBtn) {
+            startPlanningBtn.addEventListener('click', () => {
+                const formSection = document.getElementById('preferences-form');
+                if (formSection) {
+                    formSection.scrollIntoView({ behavior: 'smooth' });
+                    if (elements.destinationInput) elements.destinationInput.focus();
+                }
+            });
+        }
+
+        // Quick Destination Chips
+        document.querySelectorAll('.quick-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const dest = chip.dataset.dest || chip.textContent.trim();
+                if (elements.destinationInput) {
+                    elements.destinationInput.value = dest;
+                    const formSection = document.getElementById('preferences-form');
+                    if (formSection) {
+                        formSection.scrollIntoView({ behavior: 'smooth' });
+                    }
+                    elements.destinationInput.focus();
+                }
+            });
+        });
+
         // PDF & Plan Another
         if (elements.downloadPdfBtn) {
             elements.downloadPdfBtn.addEventListener('click', handleDownloadPdf);

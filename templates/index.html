@@ -9,7 +9,7 @@
     <!-- Google Fonts & Font Awesome Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Leaflet CSS for Reliable Interactive Map View -->
@@ -19,39 +19,54 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <!-- Top Navigation Bar -->
+    <!-- Top Navigation Bar (Picture 2 Interface) -->
     <nav class="navbar">
         <div class="nav-container">
-            <a href="/" class="nav-brand">
+            <div class="nav-brand">
                 <i class="fas fa-route brand-icon"></i>
-                <span class="brand-name">AI Trip<span class="brand-highlight">Planner</span></span>
-            </a>
-            <div class="nav-actions">
-                <button id="navChatbotBtn" class="nav-btn chatbot-nav-btn" title="Open AI Travel Assistant">
-                    <i class="fas fa-robot"></i>
-                    <span>AI Assistant</span>
-                </button>
+                <span class="brand-name">AI Trip<strong>Planner</strong></span>
+                <span class="badge-maps"><i class="fas fa-map-marked-alt"></i> Maps & Places</span>
+            </div>
+            <div class="nav-links">
+                <a href="#preferences-form" class="nav-link"><i class="fas fa-compass"></i> Plan Trip</a>
+                <a href="#trip-explorer-section" class="nav-link" id="navMapLink"><i class="fas fa-map"></i> Trip Map</a>
+                <button id="navChatbotBtn" class="nav-btn"><i class="fas fa-robot"></i> AI Assistant</button>
             </div>
         </div>
     </nav>
 
-    <!-- Hero Header -->
-    <header class="hero-section">
-        <div class="hero-content">
-            <span class="hero-badge"><i class="fas fa-sparkles"></i> Next-Gen AI Travel Intelligence</span>
-            <h1>Design Your Dream Journey with <span class="gradient-text">Interactive Maps</span></h1>
-            <p class="hero-subtitle">Generate custom day-by-day itineraries, explore verified place photos, track real road routes, and get instant answers from your AI travel assistant.</p>
+    <!-- Hero Header (Picture 2 Blue Aerial Airplane Window Banner) -->
+    <header class="hero-header-banner">
+        <div class="container hero-content">
+            <div class="hero-badge"><i class="fas fa-sparkles"></i> Powered by Gemini AI & Google Maps</div>
+            <h1>Discover & Plan Your Perfect Journey</h1>
+            <p>Generate personalized day-by-day itineraries with interactive Google Maps, high-resolution destination photos, and real-time AI guidance.</p>
+            
+            <div class="quick-destinations">
+                <span class="quick-title">Popular Destinations:</span>
+                <button type="button" class="quick-chip" data-dest="Manali, Himachal Pradesh"><i class="fas fa-mountain"></i> Manali</button>
+                <button type="button" class="quick-chip" data-dest="Goa, India"><i class="fas fa-umbrella-beach"></i> Goa</button>
+                <button type="button" class="quick-chip" data-dest="Jaipur, Rajasthan"><i class="fas fa-monument"></i> Jaipur</button>
+                <button type="button" class="quick-chip" data-dest="Kerala, India"><i class="fas fa-water"></i> Kerala</button>
+                <button type="button" class="quick-chip" data-dest="Paris, France"><i class="fas fa-landmark"></i> Paris</button>
+                <button type="button" class="quick-chip" data-dest="Tokyo, Japan"><i class="fas fa-city"></i> Tokyo</button>
+            </div>
+
+            <button id="startPlanning" class="cta-button">
+                <span>Start Planning Now</span>
+                <i class="fas fa-arrow-down"></i>
+            </button>
         </div>
     </header>
 
     <main class="main-container">
-        <!-- Preferences Form Section -->
-        <section id="preferences-form" class="section-card">
+        <!-- Preferences Form Section (Spacious Card) -->
+        <section id="preferences-form" class="container section-card">
             <div class="section-header">
                 <div class="section-icon"><i class="fas fa-sliders-h"></i></div>
                 <div>
                     <h2>Trip Preferences & Itinerary Builder</h2>
-                    <p class="section-desc">Enter your destination and preferences below to create your personalized journey.</p>
+                    <p class="section-desc">Tell our AI where you want to go and what you love to do.</p>
                 </div>
             </div>
 
@@ -157,7 +172,7 @@
                 <!-- Special Considerations -->
                 <div class="form-group">
                     <label for="specialConsiderations"><i class="fas fa-info-circle"></i> Special Considerations / Notes</label>
-                    <textarea id="specialConsiderations" name="specialConsiderations" rows="2" placeholder="e.g. Vegetarian food options, travelling with family/kids, preference for scenic viewpoints, pet friendly..."></textarea>
+                    <textarea id="specialConsiderations" name="specialConsiderations" rows="3" placeholder="e.g. Vegetarian food options, travelling with family/kids, preference for scenic viewpoints, pet friendly..."></textarea>
                 </div>
 
                 <button type="submit" class="submit-button" id="generateBtn">
@@ -170,7 +185,7 @@
         </section>
 
         <!-- Advanced 2-Column Trip Explorer Workspace -->
-        <section id="trip-explorer-section" class="trip-workspace-section hidden">
+        <section id="trip-explorer-section" class="container trip-workspace-section hidden">
             <!-- Explorer Top Navigation Bar -->
             <div class="workspace-header-bar">
                 <div class="workspace-title-wrap">
