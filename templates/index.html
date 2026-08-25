@@ -108,16 +108,16 @@
                     </div>
                 </div>
 
-                <!-- Travel Interests & Vibes -->
+                <!-- Travel Interests & Vibes (Manual Selection) -->
                 <div class="form-group">
-                    <label><i class="fas fa-heart"></i> Travel Interests & Vibes</label>
+                    <label><i class="fas fa-heart"></i> Travel Interests & Vibes <span class="optional-tag">(Select what you like)</span></label>
                     <div class="interests-grid">
                         <label class="checkbox-label">
-                            <input type="checkbox" name="interests" value="Nature & Scenery" checked> 
+                            <input type="checkbox" name="interests" value="Nature & Scenery"> 
                             <span><i class="fas fa-tree"></i> Nature & Scenery</span>
                         </label>
                         <label class="checkbox-label">
-                            <input type="checkbox" name="interests" value="Local Food & Cafes" checked> 
+                            <input type="checkbox" name="interests" value="Local Food & Cafes"> 
                             <span><i class="fas fa-utensils"></i> Local Food & Cafes</span>
                         </label>
                         <label class="checkbox-label">
@@ -139,13 +139,14 @@
                     </div>
                 </div>
 
-                <!-- Budget & Pace -->
+                <!-- Budget & Pace (Manual Selection) -->
                 <div class="form-row">
                     <div class="form-group">
                         <label for="budget"><i class="fas fa-wallet"></i> Budget Range</label>
-                        <select id="budget" name="budget" required>
+                        <select id="budget" name="budget">
+                            <option value="" disabled selected>Select your budget range...</option>
                             <option value="Budget-Friendly (Affordable stays & local eats)">Budget-Friendly (Affordable stays & local eats)</option>
-                            <option value="Moderate / Balanced (Comfortable & versatile)" selected>Moderate / Balanced (Comfortable & versatile)</option>
+                            <option value="Moderate / Balanced (Comfortable & versatile)">Moderate / Balanced (Comfortable & versatile)</option>
                             <option value="Luxury / Premium (High-end resorts & fine dining)">Luxury / Premium (High-end resorts & fine dining)</option>
                         </select>
                     </div>
@@ -158,7 +159,7 @@
                                 <span><i class="fas fa-coffee"></i> Relaxed</span>
                             </label>
                             <label class="radio-label">
-                                <input type="radio" name="pace" value="Balanced (Best of both)" checked> 
+                                <input type="radio" name="pace" value="Balanced (Best of both)"> 
                                 <span><i class="fas fa-balance-scale"></i> Balanced</span>
                             </label>
                             <label class="radio-label">
